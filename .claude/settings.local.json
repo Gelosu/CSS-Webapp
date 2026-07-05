@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mv ~/.npmrc ~/.npmrc.bak)",
+      "Bash(npm install *)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\a3zir"
+    ]
+  }
+}
