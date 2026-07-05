@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+
+  --background: #f4f6f9;
+  --surface: #ffffff;
+  --surface-alt: #eaeff6;
+  --border: #d7dfea;
+  --foreground: #16233b;
+  --muted: #5c6b84;
+  --primary: #1e3a5f;
+  --primary-dark: #142a46;
+  --accent: #c8962c;
+  --danger: #b3261e;
+  --success: #16a34a;
+  --on-primary: #ffffff;
+  --chart-series-1: #3169b5;
+  --chart-series-2: #c8962c;
+  --chart-grid: #e1e0d9;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: #0a111f;
+  --surface: #121b2e;
+  --surface-alt: #1a2740;
+  --border: #263757;
+  --foreground: #e7ecf5;
+  --muted: #93a2bf;
+  --primary: #5b8fc7;
+  --primary-dark: #4a7ab0;
+  --accent: #e0b34d;
+  --danger: #f87171;
+  --success: #4ade80;
+  --on-primary: #0a141f;
+  --chart-series-1: #5b8fc7;
+  --chart-series-2: #a87a1f;
+  --chart-grid: #2c2c2a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-alt: var(--surface-alt);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-dark: var(--primary-dark);
+  --color-accent: var(--accent);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-on-primary: var(--on-primary);
+  --color-chart-series-1: var(--chart-series-1);
+  --color-chart-series-2: var(--chart-series-2);
+  --color-chart-grid: var(--chart-grid);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-serif: var(--font-lora);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+* {
+  scrollbar-color: var(--surface-alt) transparent;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  *,
+  *::before,
+  *::after {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-timing-function: ease;
+    transition-duration: 150ms;
+  }
+}
