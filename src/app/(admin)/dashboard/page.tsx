@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useAuth } from "@/lib/auth-context";
 import { useClassrooms, useStudents } from "@/lib/hooks";
 import { createStudent, deleteStudent, updateStudent } from "@/lib/students";
 import { studentProgressPercent, summarizeProgress } from "@/lib/progress";
@@ -12,6 +13,7 @@ import { StudentDetail } from "@/components/StudentDetail";
 import type { Student } from "@/types";
 
 export default function DashboardPage() {
+  const { role, classCode } = useAuth();
   const { students, loading: studentsLoading, error: studentsError } = useStudents();
   const { classrooms } = useClassrooms();
 
@@ -21,39 +23,50 @@ export default function DashboardPage() {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [deletingStudent, setDeletingStudent] = useState<Student | null>(null);
 
+  // Teachers are scoped to the one classroom they're assigned to — they never
+  // see students or classrooms outside it.
+  const scopedStudents = useMemo(
+    () => (role === "teacher" ? students.filter((s) => s.classCode === classCode) : students),
+    [students, role, classCode]
+  );
+  const scopedClassrooms = useMemo(
+    () => (role === "teacher" ? classrooms.filter((c) => c.code === classCode) : classrooms),
+    [classrooms, role, classCode]
+  );
+
   const classroomById = useMemo(
-    () => new Map(classrooms.map((c) => [c.id, c])),
-    [classrooms]
+    () => new Map(scopedClassrooms.map((c) => [c.id, c])),
+    [scopedClassrooms]
   );
 
   const filteredStudents = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return students;
-    return students.filter(
+    if (!term) return scopedStudents;
+    return scopedStudents.filter(
       (s) =>
         s.fullName.toLowerCase().includes(term) ||
         s.email.toLowerCase().includes(term) ||
         s.username.toLowerCase().includes(term)
     );
-  }, [students, search]);
+  }, [scopedStudents, search]);
 
   const aggregate = useMemo(() => {
-    const totalStudents = students.length;
-    const totalClassrooms = classrooms.length;
+    const totalStudents = scopedStudents.length;
+    const totalClassrooms = scopedClassrooms.length;
     const avgProgress = totalStudents
       ? Math.round(
-          students.reduce((sum, s) => sum + studentProgressPercent(s), 0) /
+          scopedStudents.reduce((sum, s) => sum + studentProgressPercent(s), 0) /
             totalStudents
         )
       : 0;
-    const totalActivitiesCompleted = students.reduce(
+    const totalActivitiesCompleted = scopedStudents.reduce(
       (sum, s) => sum + summarizeProgress(s.learningProgress).activitiesCompleted,
       0
     );
     return { totalStudents, totalClassrooms, avgProgress, totalActivitiesCompleted };
-  }, [students, classrooms]);
+  }, [scopedStudents, scopedClassrooms]);
 
-  const selectedStudent = students.find((s) => s.id === selectedStudentId) ?? null;
+  const selectedStudent = scopedStudents.find((s) => s.id === selectedStudentId) ?? null;
 
   if (selectedStudent) {
     return (
@@ -69,7 +82,7 @@ export default function DashboardPage() {
           <StudentFormModal
             mode="edit"
             student={editingStudent}
-            classrooms={classrooms}
+            classrooms={scopedClassrooms}
             onClose={() => setEditingStudent(null)}
             onSubmit={async (input) => {
               await updateStudent(editingStudent.id, input);
@@ -95,19 +108,21 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-serif text-2xl font-semibold text-foreground">Dashboard</h1>
           <p className="mt-1 text-sm text-muted">
             Overview of all students enrolled in the course app.
           </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark transition-colors"
-        >
-          + Add Student
-        </button>
+        {role === "admin" && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark transition-colors"
+          >
+            + Add Student
+          </button>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -121,13 +136,13 @@ export default function DashboardPage() {
       </div>
 
       <div className="rounded-2xl border border-border bg-surface">
-        <div className="flex items-center justify-between border-b border-border p-4">
+        <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-sm font-semibold text-foreground">Students</h2>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, username, or email..."
-            className="w-64 rounded-lg border border-border bg-surface-alt px-3 py-1.5 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full rounded-lg border border-border bg-surface-alt px-3 py-1.5 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary sm:w-64"
           />
         </div>
 

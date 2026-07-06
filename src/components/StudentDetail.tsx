@@ -40,7 +40,7 @@ export function StudentDetail({
       </button>
 
       <div className="rounded-2xl border border-border bg-surface p-6">
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-success/40 bg-success/10 px-3 py-1 text-xs font-medium text-success">
               ✓ {percent}% Completed
@@ -55,7 +55,7 @@ export function StudentDetail({
               Classroom: {classroom?.name ?? "Unassigned"}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex shrink-0 gap-2">
             <button
               onClick={onEdit}
               className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-alt transition-colors"

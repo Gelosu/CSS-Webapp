@@ -17,11 +17,11 @@ export function Modal({
   size?: keyof typeof SIZE_CLASSES;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4">
       <div
-        className={`w-full ${SIZE_CLASSES[size]} rounded-2xl border border-border bg-surface p-6 shadow-xl`}
+        className={`flex max-h-[85vh] w-full ${SIZE_CLASSES[size]} flex-col rounded-2xl border border-border bg-surface p-4 shadow-xl sm:p-6`}
       >
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex shrink-0 items-center justify-between">
           <h2 className="text-lg font-semibold text-foreground">{title}</h2>
           <button
             onClick={onClose}
@@ -31,7 +31,7 @@ export function Modal({
             ✕
           </button>
         </div>
-        {children}
+        <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
       </div>
     </div>
   );

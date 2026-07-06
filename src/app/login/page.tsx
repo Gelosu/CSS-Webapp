@@ -3,7 +3,6 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { Brand } from "@/components/Brand";
 
 export default function LoginPage() {
@@ -38,9 +37,6 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen flex-1 items-center justify-center bg-background px-4">
-      <div className="absolute right-4 top-4">
-        <ThemeToggle />
-      </div>
       <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-8 shadow-xl">
         <Brand size="lg" center />
         <h1 className="mt-6 text-center font-serif text-2xl font-semibold text-foreground">

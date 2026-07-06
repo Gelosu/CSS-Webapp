@@ -1,44 +1,24 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
-
 :root {
-  color-scheme: light;
-
-  --background: #f4f6f9;
-  --surface: #ffffff;
-  --surface-alt: #eaeff6;
-  --border: #d7dfea;
-  --foreground: #16233b;
-  --muted: #5c6b84;
-  --primary: #1e3a5f;
-  --primary-dark: #142a46;
-  --accent: #c8962c;
-  --danger: #b3261e;
-  --success: #16a34a;
-  --on-primary: #ffffff;
-  --chart-series-1: #3169b5;
-  --chart-series-2: #c8962c;
-  --chart-grid: #e1e0d9;
-}
-
-.dark {
   color-scheme: dark;
 
+  /* Brand palette sampled from the JPRSHS school seal (royal blue + gold,
+     with the seal's red/green echoed in danger/success). Dark theme only. */
   --background: #0a111f;
   --surface: #121b2e;
   --surface-alt: #1a2740;
   --border: #263757;
   --foreground: #e7ecf5;
   --muted: #93a2bf;
-  --primary: #5b8fc7;
-  --primary-dark: #4a7ab0;
-  --accent: #e0b34d;
-  --danger: #f87171;
+  --primary: #5b93d9;
+  --primary-dark: #4a7ec2;
+  --accent: #eab668;
+  --danger: #f16a5c;
   --success: #4ade80;
   --on-primary: #0a141f;
-  --chart-series-1: #5b8fc7;
-  --chart-series-2: #a87a1f;
+  --chart-series-1: #5b93d9;
+  --chart-series-2: #caa053;
   --chart-grid: #2c2c2a;
 }
 

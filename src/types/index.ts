@@ -44,3 +44,38 @@ export interface DownloadInvite {
   createdAt: number;
   usedAt: number | null;
 }
+
+export type StaffRole = "admin" | "teacher";
+
+export interface StaffMember {
+  uid: string; // Firebase Auth uid, also the staff/{uid} key
+  fullName: string;
+  email: string;
+  role: StaffRole;
+  // The one classroom this teacher is scoped to (adviser-style: one teacher,
+  // one section). Null for admins and for teachers not yet assigned one.
+  classCode: string | null;
+  createdAt: number;
+}
+
+export type TicketStatus = "open" | "resolved";
+
+export interface SupportTicket {
+  id: string; // supportTickets/{id} key
+  teacherId: string;
+  teacherName: string;
+  teacherEmail: string;
+  description: string;
+  status: TicketStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SupportMessage {
+  id: string;
+  from: StaffRole;
+  authorId: string;
+  authorName: string;
+  text: string;
+  createdAt: number;
+}

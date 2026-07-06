@@ -1,26 +1,41 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 import { useClassrooms, useStudents } from "@/lib/hooks";
 import {
   createClassroom,
   deleteClassroom,
   updateClassroom,
 } from "@/lib/classrooms";
+import { claimClassroom } from "@/lib/staff";
 import { ClassroomFormModal } from "@/components/ClassroomFormModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { JoinLinkBadge } from "@/components/JoinLinkBadge";
+import { ClassroomCard } from "@/components/ClassroomCard";
 import type { Classroom } from "@/types";
 
 export default function ClassroomsPage() {
-  const { classrooms, loading, error } = useClassrooms();
+  const { role, classCode, refreshRole } = useAuth();
+  const { classrooms: allClassrooms, loading, error } = useClassrooms();
   const { students } = useStudents();
 
   const [search, setSearch] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingClassroom, setEditingClassroom] = useState<Classroom | null>(null);
   const [deletingClassroom, setDeletingClassroom] = useState<Classroom | null>(null);
+
+  // Teachers only ever see the one classroom they're assigned to.
+  const classrooms = useMemo(
+    () =>
+      role === "teacher"
+        ? allClassrooms.filter((c) => c.code === classCode)
+        : allClassrooms,
+    [allClassrooms, role, classCode]
+  );
+
+  // A teacher with no classroom yet can create one — it becomes theirs
+  // automatically. Once they have one, they're done; one teacher, one class.
+  const canCreateClassroom = role === "admin" || (role === "teacher" && !classCode);
 
   const filteredClassrooms = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -39,26 +54,28 @@ export default function ClassroomsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-serif text-2xl font-semibold text-foreground">Classrooms</h1>
           <p className="mt-1 text-sm text-muted">
             Create classrooms and manage which students are enrolled.
           </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark transition-colors"
-        >
-          + New Classroom
-        </button>
+        {canCreateClassroom && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark transition-colors"
+          >
+            + New Classroom
+          </button>
+        )}
       </div>
 
       <input
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search classrooms by name..."
-        className="w-full max-w-sm rounded-lg border border-border bg-surface-alt px-3 py-1.5 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+        className="w-full rounded-lg border border-border bg-surface-alt px-3 py-1.5 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary sm:max-w-sm"
       />
 
       {loading ? (
@@ -76,51 +93,13 @@ export default function ClassroomsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredClassrooms.map((classroom) => (
-            <div
+            <ClassroomCard
               key={classroom.id}
-              className="rounded-2xl border border-border bg-surface p-5"
-            >
-              <div className="flex items-start justify-between">
-                <div>
-                  <h2 className="font-semibold text-foreground">{classroom.name}</h2>
-                  {classroom.description && (
-                    <p className="mt-1 text-xs text-muted line-clamp-2">
-                      {classroom.description}
-                    </p>
-                  )}
-                </div>
-                <span className="rounded-full bg-surface-alt px-2.5 py-1 text-xs font-medium text-primary">
-                  {studentCountByClassroom.get(classroom.id) ?? 0} students
-                </span>
-              </div>
-
-              <div className="mt-4">
-                <JoinLinkBadge code={classroom.code} />
-              </div>
-
-              <div className="mt-4 flex items-center justify-between">
-                <Link
-                  href={`/classrooms/${classroom.id}`}
-                  className="text-sm font-medium text-primary hover:underline"
-                >
-                  Manage students →
-                </Link>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setEditingClassroom(classroom)}
-                    className="rounded-lg border border-border px-2.5 py-1 text-xs text-foreground hover:bg-surface-alt transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => setDeletingClassroom(classroom)}
-                    className="rounded-lg border border-danger/40 px-2.5 py-1 text-xs text-danger hover:bg-danger/10 transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            </div>
+              classroom={classroom}
+              studentCount={studentCountByClassroom.get(classroom.id) ?? 0}
+              onEdit={() => setEditingClassroom(classroom)}
+              onDelete={() => setDeletingClassroom(classroom)}
+            />
           ))}
         </div>
       )}
@@ -131,6 +110,10 @@ export default function ClassroomsPage() {
           onClose={() => setShowAddModal(false)}
           onSubmit={async (input, code) => {
             await createClassroom(input, code);
+            if (role === "teacher") {
+              await claimClassroom(code);
+              await refreshRole();
+            }
           }}
         />
       )}

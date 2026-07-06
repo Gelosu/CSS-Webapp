@@ -1,10 +1,16 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useState } from "react";
 import { Modal } from "./Modal";
 import { useDownloadInvites } from "@/lib/hooks";
-import { createDownloadInvite } from "@/lib/download-invites";
+import { authedFetch } from "@/lib/api-client";
 import type { DownloadInvite } from "@/types";
+
+interface SendResult {
+  email: string;
+  ok: boolean;
+  error?: string;
+}
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -29,11 +35,22 @@ export function ManageInvitesModal({
   const { invites, loading } = useDownloadInvites(classroomId);
   const rows = useMemo(() => latestByEmail(invites), [invites]);
 
-  const [emailsText, setEmailsText] = useState("");
+  const [emailInput, setEmailInput] = useState("");
+  const [inputError, setInputError] = useState<string | null>(null);
+  const [pendingEmails, setPendingEmails] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [resendingEmail, setResendingEmail] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sendResults, setSendResults] = useState<SendResult[] | null>(null);
+
+  async function sendInvites(emails: string[]): Promise<SendResult[]> {
+    const data = (await authedFetch("/api/download-invites", {
+      method: "POST",
+      body: JSON.stringify({ classroomId, emails }),
+    })) as { results: SendResult[] };
+    return data.results;
+  }
 
   function inviteLink(token: string) {
     return typeof window !== "undefined"
@@ -47,34 +64,39 @@ export function ManageInvitesModal({
     setTimeout(() => setCopiedToken(null), 1500);
   }
 
-  async function handleAdd(e: FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    const emails = Array.from(
-      new Set(
-        emailsText
-          .split(/[\n,]/)
-          .map((s) => s.trim().toLowerCase())
-          .filter(Boolean)
-      )
-    );
-    if (emails.length === 0) return;
-
-    const invalid = emails.filter((e) => !EMAIL_RE.test(e));
-    if (invalid.length > 0) {
-      setError(`Not a valid email: ${invalid.join(", ")}`);
+  function addEmail() {
+    const email = emailInput.trim().toLowerCase();
+    setInputError(null);
+    if (!email) return;
+    if (!EMAIL_RE.test(email)) {
+      setInputError("Not a valid email address.");
       return;
     }
+    if (pendingEmails.includes(email)) {
+      setInputError("Already added.");
+      return;
+    }
+    setPendingEmails((prev) => [...prev, email]);
+    setEmailInput("");
+  }
+
+  function removeEmail(email: string) {
+    setPendingEmails((prev) => prev.filter((e) => e !== email));
+  }
+
+  async function handleSend() {
+    setError(null);
+    setSendResults(null);
+    if (pendingEmails.length === 0) return;
 
     setSubmitting(true);
     try {
-      for (const email of emails) {
-        await createDownloadInvite(classroomId, email);
-      }
-      setEmailsText("");
-    } catch {
-      setError("Something went wrong generating some links. Please try again.");
+      const results = await sendInvites(pendingEmails);
+      setSendResults(results);
+      const failed = new Set(results.filter((r) => !r.ok).map((r) => r.email));
+      setPendingEmails((prev) => prev.filter((e) => failed.has(e)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong sending the emails. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -82,8 +104,12 @@ export function ManageInvitesModal({
 
   async function handleResend(email: string) {
     setResendingEmail(email);
+    setSendResults(null);
     try {
-      await createDownloadInvite(classroomId, email);
+      const results = await sendInvites([email]);
+      setSendResults(results);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resend.");
     } finally {
       setResendingEmail(null);
     }
@@ -91,36 +117,94 @@ export function ManageInvitesModal({
 
   return (
     <Modal title="Manage download invites" onClose={onClose} size="lg">
-      <form onSubmit={handleAdd} className="space-y-3">
+      <div className="space-y-3">
         <div>
           <label className="mb-1 block text-xs font-medium text-muted">Student emails</label>
-          <textarea
-            value={emailsText}
-            onChange={(e) => setEmailsText(e.target.value)}
-            rows={3}
-            placeholder="one per line, or comma-separated"
-            className="w-full rounded-lg border border-border bg-surface-alt px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <p className="mt-1 text-xs text-muted">
-            Generates a one-time download link per email. Each link works once — after
-            it&apos;s opened, that student needs a &ldquo;Resend&rdquo; before they can
-            download again. Automatic sending isn&apos;t wired up yet, so copy each link
-            below and send it yourself for now.
-          </p>
+          <div className="flex gap-2">
+            <input
+              type="email"
+              value={emailInput}
+              onChange={(e) => {
+                setEmailInput(e.target.value);
+                setInputError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addEmail();
+                }
+              }}
+              placeholder="student@example.com"
+              className="min-w-0 flex-1 rounded-lg border border-border bg-surface-alt px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <button
+              type="button"
+              onClick={addEmail}
+              disabled={!emailInput.trim()}
+              className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:bg-surface-alt disabled:opacity-50 transition-colors"
+            >
+              Add
+            </button>
+          </div>
+          {inputError && <p className="mt-1 text-xs text-danger">{inputError}</p>}
         </div>
+
+        {pendingEmails.length > 0 && (
+          <ul className="max-h-40 space-y-1.5 overflow-y-auto rounded-lg border border-border bg-surface-alt p-2">
+            {pendingEmails.map((email) => (
+              <li
+                key={email}
+                className="flex items-center justify-between gap-2 rounded-md bg-surface px-3 py-1.5 text-sm"
+              >
+                <span className="min-w-0 truncate text-foreground">{email}</span>
+                <button
+                  type="button"
+                  onClick={() => removeEmail(email)}
+                  aria-label={`Remove ${email}`}
+                  className="shrink-0 text-muted hover:text-danger transition-colors"
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <p className="text-xs text-muted">
+          Add each student&apos;s email to the list, then send. Each gets a one-time
+          download link with the class code and a Download APK button — after it&apos;s
+          opened once, they&apos;ll need a &ldquo;Resend&rdquo; to download again.
+        </p>
 
         {error && <p className="text-sm text-danger">{error}</p>}
 
+        {sendResults && (
+          <div className="space-y-1 rounded-lg border border-border bg-surface-alt p-3 text-xs">
+            {sendResults.map((r) => (
+              <p key={r.email} className={r.ok ? "text-success" : "text-danger"}>
+                {r.ok ? "Sent to " : "Failed for "}
+                {r.email}
+                {!r.ok && r.error ? `: ${r.error}` : ""}
+              </p>
+            ))}
+          </div>
+        )}
+
         <div className="flex justify-end">
           <button
-            type="submit"
-            disabled={submitting || !emailsText.trim()}
+            type="button"
+            onClick={handleSend}
+            disabled={submitting || pendingEmails.length === 0}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark disabled:opacity-60 transition-colors"
           >
-            {submitting ? "Generating..." : "Generate links"}
+            {submitting
+              ? "Sending..."
+              : `Send email${pendingEmails.length > 1 ? "s" : ""}${
+                  pendingEmails.length > 0 ? ` (${pendingEmails.length})` : ""
+                }`}
           </button>
         </div>
-      </form>
+      </div>
 
       <div className="mt-6 max-h-72 overflow-y-auto rounded-lg border border-border">
         {loading ? (

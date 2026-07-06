@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { ThemeToggle } from "./ThemeToggle";
 import { Brand } from "./Brand";
 
 function DashboardIcon() {
@@ -79,53 +78,130 @@ function LogoutIcon() {
   );
 }
 
-const NAV_ITEMS = [
+function SupportIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 shrink-0"
+    >
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function RolesIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 shrink-0"
+    >
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+const BASE_NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", Icon: DashboardIcon },
   { href: "/classrooms", label: "Classrooms", Icon: ClassroomsIcon },
-  { href: "/settings", label: "Settings", Icon: SettingsIcon },
+  { href: "/support", label: "Support", Icon: SupportIcon },
 ];
 
-export function Sidebar() {
+const ADMIN_NAV_ITEMS = [
+  { href: "/roles", label: "Role & Permission", Icon: RolesIcon },
+];
+
+const SETTINGS_NAV_ITEM = { href: "/settings", label: "Settings", Icon: SettingsIcon };
+
+export function Sidebar({
+  mobileOpen,
+  onClose,
+}: {
+  mobileOpen: boolean;
+  onClose: () => void;
+}) {
   const pathname = usePathname();
-  const { logout } = useAuth();
+  const { logout, role } = useAuth();
+
+  const navItems = [
+    ...BASE_NAV_ITEMS,
+    ...(role === "admin" ? ADMIN_NAV_ITEMS : []),
+    SETTINGS_NAV_ITEM,
+  ];
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface px-4 py-6">
-      <div className="px-2">
-        <Brand />
-        <p className="mt-4 truncate text-xs text-muted">Signed in as Admin</p>
-      </div>
+    <>
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-full w-64 shrink-0 flex-col overflow-y-auto border-r border-border bg-surface px-4 py-6 transition-transform duration-200 md:static md:z-auto md:translate-x-0 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <div className="flex items-center justify-between px-2">
+          <Brand />
+          <button
+            onClick={onClose}
+            aria-label="Close menu"
+            className="text-muted hover:text-foreground transition-colors md:hidden"
+          >
+            ✕
+          </button>
+        </div>
+        <p className="mt-4 truncate px-2 text-xs text-muted">
+          Signed in as {role === "admin" ? "Admin" : "Teacher"}
+        </p>
 
-      <nav className="mt-8 flex-1 space-y-1">
-        {NAV_ITEMS.map(({ href, label, Icon }) => {
-          const active = pathname.startsWith(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={`flex items-center gap-3 rounded-xl border-l-2 px-3 py-2.5 text-sm font-medium transition-colors ${
-                active
-                  ? "border-l-accent bg-primary/10 text-primary"
-                  : "border-l-transparent text-muted hover:bg-surface-alt hover:text-foreground"
-              }`}
-            >
-              <Icon />
-              {label}
-            </Link>
-          );
-        })}
-      </nav>
+        <nav className="mt-8 flex-1 space-y-1">
+          {navItems.map(({ href, label, Icon }) => {
+            const active = pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={onClose}
+                className={`flex items-center gap-3 rounded-xl border-l-2 px-3 py-2.5 text-sm font-medium transition-colors ${
+                  active
+                    ? "border-l-accent bg-primary/10 text-primary"
+                    : "border-l-transparent text-muted hover:bg-surface-alt hover:text-foreground"
+                }`}
+              >
+                <Icon />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
 
-      <div className="mt-4 space-y-1">
-        <ThemeToggle showLabel variant="ghost" />
-        <button
-          onClick={() => logout()}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted hover:bg-surface-alt hover:text-danger transition-colors"
-        >
-          <LogoutIcon />
-          Log out
-        </button>
-      </div>
-    </aside>
+        <div className="mt-4 space-y-1">
+          <button
+            onClick={() => logout()}
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted hover:bg-surface-alt hover:text-danger transition-colors"
+          >
+            <LogoutIcon />
+            Log out
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }

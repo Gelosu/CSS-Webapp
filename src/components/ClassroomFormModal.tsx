@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { Modal } from "./Modal";
+import { useAuth } from "@/lib/auth-context";
 import { generateAvailableJoinCode } from "@/lib/classrooms";
 import { DEFAULT_APK_DOWNLOAD_URL } from "@/lib/constants";
 import type { Classroom, ClassroomInput } from "@/types";
@@ -24,6 +25,7 @@ type Props =
     };
 
 export function ClassroomFormModal(props: Props) {
+  const { role } = useAuth();
   const { mode, onClose, onSubmit } = props;
   const classroom = mode === "edit" ? props.classroom : undefined;
 
@@ -131,22 +133,24 @@ export function ClassroomFormModal(props: Props) {
             placeholder="Optional notes about this classroom"
           />
         </div>
-        <div>
-          <label className={labelClass}>App download link</label>
-          <div className="w-full rounded-lg border border-border bg-surface-alt px-3 py-2">
-            <a
-              href={downloadUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="break-all text-sm text-primary hover:underline"
-            >
-              {downloadUrl}
-            </a>
+        {role === "admin" && (
+          <div>
+            <label className={labelClass}>App download link</label>
+            <div className="w-full rounded-lg border border-border bg-surface-alt px-3 py-2">
+              <a
+                href={downloadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="break-all text-sm text-primary hover:underline"
+              >
+                {downloadUrl}
+              </a>
+            </div>
+            <p className="mt-1 text-xs text-muted">
+              Shown on the join page. Fixed for now — every classroom shares this same link.
+            </p>
           </div>
-          <p className="mt-1 text-xs text-muted">
-            Shown on the join page. Fixed for now — every classroom shares this same link.
-          </p>
-        </div>
+        )}
 
         {error && <p className="text-sm text-danger">{error}</p>}
 

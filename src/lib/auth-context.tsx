@@ -17,13 +17,22 @@ import {
   type User,
 } from "firebase/auth";
 import { getFirebaseAuth, isFirebaseConfigured } from "./firebase";
+import { bootstrapRole } from "./staff";
+import type { StaffRole } from "@/types";
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
+  role: StaffRole | null;
+  // The one classroom this user (if a teacher) is scoped to. Null for admins.
+  classCode: string | null;
+  roleLoading: boolean;
   configured: boolean;
   login: (email: string, password: string, remember?: boolean) => Promise<void>;
   logout: () => Promise<void>;
+  // Re-fetches role/classCode without a full reload — used right after a
+  // teacher claims a newly-created classroom as their own.
+  refreshRole: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -44,6 +53,42 @@ function isRemembered() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(isFirebaseConfigured);
+  const [role, setRole] = useState<StaffRole | null>(null);
+  const [classCode, setClassCode] = useState<string | null>(null);
+  // Tracks which uid `role` was last resolved for, so loading state can be
+  // derived (role stale/absent for the current user = still loading) rather
+  // than toggled synchronously inside the effect.
+  const [roleResolvedForUid, setRoleResolvedForUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    bootstrapRole()
+      .then((profile) => {
+        if (cancelled) return;
+        setRole(profile.role);
+        setClassCode(profile.classCode);
+        setRoleResolvedForUid(user.uid);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setRole(null);
+        setClassCode(null);
+        setRoleResolvedForUid(user.uid);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const roleLoading = Boolean(user) && roleResolvedForUid !== user?.uid;
+
+  async function refreshRole() {
+    if (!user) return;
+    const profile = await bootstrapRole();
+    setRole(profile.role);
+    setClassCode(profile.classCode);
+  }
 
   useEffect(() => {
     if (!isFirebaseConfigured) return;
@@ -97,7 +142,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, configured: isFirebaseConfigured, login, logout }}
+      value={{
+        user,
+        loading,
+        role: user ? role : null,
+        classCode: user ? classCode : null,
+        roleLoading,
+        configured: isFirebaseConfigured,
+        login,
+        logout,
+        refreshRole,
+      }}
     >
       {children}
     </AuthContext.Provider>
