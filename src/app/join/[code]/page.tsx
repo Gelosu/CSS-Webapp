@@ -1,5 +1,4 @@
 import { getClassroomByCode } from "@/lib/classroom-lookup";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { Brand } from "@/components/Brand";
 
 export default async function JoinPage({
@@ -19,9 +18,6 @@ export default async function JoinPage({
 
   return (
     <div className="relative flex min-h-screen flex-1 items-center justify-center bg-background px-4">
-      <div className="absolute right-4 top-4">
-        <ThemeToggle />
-      </div>
       <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-8 text-center shadow-xl">
         <Brand size="lg" center />
 

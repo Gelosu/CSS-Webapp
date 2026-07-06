@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
 import { ApiError, getAdminAuth, getAdminDb, requireRole } from "@/lib/firebase-admin";
-import { buildInitialLearningProgress } from "@/lib/progress";
-import type { CreateStudentInput } from "@/types";
+
+interface CreateTeacherInput {
+  fullName: string;
+  email: string;
+  password: string;
+  classCode: string | null;
+}
 
 export async function POST(request: Request) {
   try {
     await requireRole(request, ["admin"]);
-    const body = (await request.json()) as CreateStudentInput;
-    const { fullName, username, email, password, classCode } = body;
+    const body = (await request.json()) as CreateTeacherInput;
+    const { fullName, email, password, classCode } = body;
 
-    if (!fullName || !username || !email || !password) {
-      throw new ApiError(400, "fullName, username, email, and password are required.");
+    if (!fullName || !email || !password) {
+      throw new ApiError(400, "fullName, email, and password are required.");
     }
 
     const userRecord = await getAdminAuth().createUser({
@@ -20,13 +25,13 @@ export async function POST(request: Request) {
     });
 
     try {
-      await getAdminDb().ref(`users/${userRecord.uid}`).set({
+      await getAdminDb().ref(`staff/${userRecord.uid}`).set({
         uid: userRecord.uid,
         fullName,
-        username,
         email,
-        classCode: classCode ?? null,
-        learningProgress: buildInitialLearningProgress(),
+        role: "teacher",
+        classCode: classCode || null,
+        createdAt: Date.now(),
       });
     } catch (err) {
       await getAdminAuth().deleteUser(userRecord.uid);
@@ -38,7 +43,7 @@ export async function POST(request: Request) {
     if (err instanceof ApiError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
     }
-    const message = err instanceof Error ? err.message : "Failed to create student.";
+    const message = err instanceof Error ? err.message : "Failed to create teacher account.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

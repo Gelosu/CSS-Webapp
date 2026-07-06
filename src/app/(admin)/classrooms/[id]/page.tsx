@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 import { useClassrooms, useStudents } from "@/lib/hooks";
 import {
   createStudent,
@@ -22,10 +23,47 @@ import type { Student } from "@/types";
 
 type Tab = "students" | "overview";
 
+function ArrowLeftIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+    >
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 shrink-0"
+    >
+      <line x1="22" y1="2" x2="11" y2="13" />
+      <polygon points="22 2 15 22 11 13 2 9 22 2" />
+    </svg>
+  );
+}
+
 export default function ClassroomDetailPage() {
   const params = useParams<{ id: string }>();
   const classroomId = params.id;
 
+  const { role, roleLoading, classCode } = useAuth();
   const { classrooms } = useClassrooms();
   const { students, loading } = useStudents();
 
@@ -42,11 +80,18 @@ export default function ClassroomDetailPage() {
     () => students.filter((s) => s.classCode === classroomId),
     [students, classroomId]
   );
+  // Teachers can only pull in students who aren't enrolled anywhere yet —
+  // never poach a roster from a classroom they can't see.
   const unassignedOrOther = useMemo(
-    () => students.filter((s) => s.classCode !== classroomId),
-    [students, classroomId]
+    () =>
+      students.filter((s) =>
+        role === "teacher" ? !s.classCode : s.classCode !== classroomId
+      ),
+    [students, classroomId, role]
   );
   const selectedStudent = roster.find((s) => s.id === selectedStudentId) ?? null;
+
+  const isOutOfScope = role === "teacher" && classCode !== classroomId;
 
   if (!loading && !classroom) {
     return (
@@ -59,38 +104,60 @@ export default function ClassroomDetailPage() {
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <div>
+  if (!roleLoading && isOutOfScope) {
+    return (
+      <div className="space-y-4">
         <Link href="/classrooms" className="text-sm text-muted hover:text-foreground">
           ← Back to classrooms
         </Link>
-        <div className="mt-2 flex items-center justify-between">
-          <div>
-            <h1 className="font-serif text-2xl font-semibold text-foreground">
+        <p className="text-sm text-danger">
+          You don&apos;t have access to this classroom.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center gap-2">
+            <Link
+              href="/classrooms"
+              aria-label="Back to classrooms"
+              className="shrink-0 rounded-lg p-2 text-muted hover:bg-surface-alt hover:text-foreground transition-colors"
+            >
+              <ArrowLeftIcon />
+            </Link>
+            <h1 className="truncate font-serif text-2xl font-semibold text-foreground">
               {classroom?.name ?? "Loading..."}
             </h1>
-            {classroom?.description && (
-              <p className="mt-1 text-sm text-muted">{classroom.description}</p>
-            )}
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark transition-colors"
-          >
-            + Create Student
-          </button>
+          {role === "admin" && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark transition-colors"
+            >
+              + Create Student
+            </button>
+          )}
         </div>
+        {classroom?.description && (
+          <p className="mt-1 pl-11 text-sm text-muted">{classroom.description}</p>
+        )}
         {classroom && (
-          <div className="mt-4 flex max-w-2xl items-start gap-3">
-            <div className="max-w-sm flex-1">
+          <div className="mt-4 flex max-w-2xl items-center gap-2">
+            <div className="min-w-0 flex-1">
               <JoinLinkBadge code={classroom.code} />
             </div>
             <button
               onClick={() => setShowInvitesModal(true)}
-              className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-surface-alt transition-colors"
+              title="Manage download invites"
+              aria-label="Manage download invites"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs font-medium text-accent hover:bg-accent/20 transition-colors"
             >
-              Manage download invites
+              <SendIcon />
+              <span className="hidden sm:inline">Manage invites</span>
             </button>
           </div>
         )}
@@ -133,7 +200,7 @@ export default function ClassroomDetailPage() {
             <p className="mb-2 text-sm font-semibold text-foreground">
               Enroll an existing student
             </p>
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <select
                 value={enrollSelection}
                 onChange={(e) => setEnrollSelection(e.target.value)}
@@ -152,7 +219,7 @@ export default function ClassroomDetailPage() {
                   await setStudentClassCode(enrollSelection, classroomId);
                   setEnrollSelection("");
                 }}
-                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-alt disabled:opacity-50 transition-colors"
+                className="shrink-0 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-surface-alt disabled:opacity-50 transition-colors"
               >
                 Enroll
               </button>

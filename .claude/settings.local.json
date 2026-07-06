@@ -2,10 +2,21 @@
   "permissions": {
     "allow": [
       "Bash(mv ~/.npmrc ~/.npmrc.bak)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(mkdir -p \"c:/Users/angel/CSS-Webapp/src/app/api/download-invites\" \"c:/Users/angel/CSS-Webapp/src/app/api/download/[token]\")",
+      "Bash(npx tsc *)",
+      "Bash(npx eslint *)",
+      "Bash(npm run *)",
+      "Bash(git check-ignore *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000/)",
+      "Bash(node \"C:/Users/angel/AppData/Local/Temp/claude/c--Users-angel-CSS-Webapp/75f3a5a4-f967-475c-8047-3b481543f8e5/scratchpad/debug-invite.mjs\")",
+      "Bash(node -e ' *)",
+      "Bash(awk '{print length, $0}' .env)",
+      "Bash(node scratch-debug-invite.cjs)"
     ],
     "additionalDirectories": [
-      "C:\\Users\\a3zir"
+      "C:\\Users\\a3zir",
+      "c:\\Users\\angel\\CSS-Webapp\\src\\app\\api\\download"
     ]
   }
 }
