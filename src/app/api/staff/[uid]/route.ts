@@ -53,3 +53,31 @@ export async function PATCH(
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ uid: string }> }
+) {
+  try {
+    const decoded = await requireRole(request, ["admin"]);
+    const { uid } = await params;
+
+    if (uid === decoded.uid) {
+      throw new ApiError(400, "You can't delete your own account.");
+    }
+
+    await getAdminDb().ref(`staff/${uid}`).remove();
+    await getAdminAuth().deleteUser(uid).catch(() => {
+      // Auth account may already be gone; the staff record removal above is
+      // what actually revokes their access to the portal.
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    const message = err instanceof Error ? err.message : "Failed to delete staff member.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

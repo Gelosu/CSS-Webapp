@@ -82,3 +82,7 @@ export async function claimClassroom(classCode: string) {
     body: JSON.stringify({ classCode }),
   });
 }
+
+export async function deleteStaffMember(uid: string) {
+  await authedFetch(`/api/staff/${uid}`, { method: "DELETE" });
+}

@@ -4,9 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useClassrooms, useStaff } from "@/lib/hooks";
-import { updateStaffRole } from "@/lib/staff";
+import { deleteStaffMember, updateStaffRole } from "@/lib/staff";
 import { TeacherFormModal } from "@/components/TeacherFormModal";
 import { StaffEditModal } from "@/components/StaffEditModal";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { StaffMember, StaffRole } from "@/types";
 
 export default function RolesPage() {
@@ -16,6 +17,7 @@ export default function RolesPage() {
   const { classrooms } = useClassrooms();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMember, setEditingMember] = useState<StaffMember | null>(null);
+  const [deletingMember, setDeletingMember] = useState<StaffMember | null>(null);
   const [updatingUid, setUpdatingUid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -134,6 +136,13 @@ export default function RolesPage() {
                               >
                                 Edit
                               </button>
+                              <button
+                                type="button"
+                                onClick={() => setDeletingMember(member)}
+                                className="rounded-lg border border-danger/40 px-2.5 py-1.5 text-xs text-danger hover:bg-danger/10 transition-colors"
+                              >
+                                Delete
+                              </button>
                             </>
                           )}
                         </div>
@@ -150,6 +159,18 @@ export default function RolesPage() {
       {showAddModal && <TeacherFormModal onClose={() => setShowAddModal(false)} />}
       {editingMember && (
         <StaffEditModal member={editingMember} onClose={() => setEditingMember(null)} />
+      )}
+      {deletingMember && (
+        <ConfirmDialog
+          title="Delete account"
+          message={`Permanently delete ${deletingMember.fullName}'s account (${deletingMember.email})? This deletes their sign-in and cannot be undone. Their classroom and its students are not affected.`}
+          confirmLabel="Delete"
+          onCancel={() => setDeletingMember(null)}
+          onConfirm={async () => {
+            await deleteStaffMember(deletingMember.uid);
+            setDeletingMember(null);
+          }}
+        />
       )}
     </div>
   );
