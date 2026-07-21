@@ -1,6 +1,6 @@
 import type { LessonProgress, Student } from "@/types";
 import { CURRICULUM_LESSONS } from "./curriculum";
-import { studentProgressPercent } from "./progress";
+import { safeActivity, safeLesson, studentProgressPercent } from "./progress";
 
 export interface LessonStat {
   key: string;
@@ -18,8 +18,10 @@ export function computeLessonStats(students: Student[]): LessonStat[] {
     for (const s of students) {
       const p = s.learningProgress?.[key];
       if (!p) continue;
-      if (p.lesson.total > 0 && p.lesson.completed >= p.lesson.total) lessonCompletedCount++;
-      if (p.activity.activityCompleted) activityCompletedCount++;
+      const lesson = safeLesson(p);
+      const activity = safeActivity(p);
+      if (lesson.total > 0 && lesson.completed >= lesson.total) lessonCompletedCount++;
+      if (activity.activityCompleted) activityCompletedCount++;
     }
     return { key, title, lessonCompletedCount, activityCompletedCount, total: students.length };
   });
@@ -28,11 +30,9 @@ export function computeLessonStats(students: Student[]): LessonStat[] {
 export type LessonEngagement = "not-started" | "in-progress" | "completed";
 
 export function lessonEngagement(progress: LessonProgress | undefined): LessonEngagement {
-  if (!progress) return "not-started";
-  if (progress.lesson.total > 0 && progress.lesson.completed >= progress.lesson.total) {
-    return "completed";
-  }
-  if (progress.lesson.completed > 0) return "in-progress";
+  const lesson = safeLesson(progress);
+  if (lesson.total > 0 && lesson.completed >= lesson.total) return "completed";
+  if (lesson.completed > 0) return "in-progress";
   return "not-started";
 }
 
@@ -69,15 +69,17 @@ export function filterByLessonStatus(
   return students.filter((s) => {
     const p = s.learningProgress?.[lessonKey];
     if (!p) return false;
+    const lesson = safeLesson(p);
+    const activity = safeActivity(p);
     switch (status) {
       case "lesson-complete":
-        return p.lesson.total > 0 && p.lesson.completed >= p.lesson.total;
+        return lesson.total > 0 && lesson.completed >= lesson.total;
       case "lesson-incomplete":
-        return !(p.lesson.total > 0 && p.lesson.completed >= p.lesson.total);
+        return !(lesson.total > 0 && lesson.completed >= lesson.total);
       case "activity-complete":
-        return p.activity.activityCompleted;
+        return activity.activityCompleted;
       case "activity-incomplete":
-        return !p.activity.activityCompleted;
+        return !activity.activityCompleted;
       default:
         return true;
     }

@@ -11,7 +11,7 @@ import {
   type LessonStatus,
   type OverallStatus,
 } from "@/lib/classroom-analytics";
-import { studentProgressPercent, summarizeProgress } from "@/lib/progress";
+import { safeActivity, studentProgressPercent, summarizeProgress } from "@/lib/progress";
 import { CURRICULUM_LESSONS } from "@/lib/curriculum";
 import { LessonBarChart } from "./LessonBarChart";
 import { StatCard } from "./StatCard";
@@ -179,9 +179,12 @@ export function ClassroomOverview({ classroomId }: { classroomId: string }) {
                           <td className="px-4 py-3 text-muted">{percent}%</td>
                           {lessonKey !== "all" && (
                             <td className="px-4 py-3 text-muted">
-                              {lessonProgress?.activity.activityCompleted
-                                ? `Done (score ${lessonProgress.activity.score})`
-                                : "Not completed"}
+                              {(() => {
+                                const activity = safeActivity(lessonProgress);
+                                return activity.activityCompleted
+                                  ? `Done (score ${activity.score})`
+                                  : "Not completed";
+                              })()}
                             </td>
                           )}
                         </tr>
