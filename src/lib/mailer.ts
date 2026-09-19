@@ -123,3 +123,88 @@ export async function sendDownloadInviteEmail(opts: {
       `This link can only be used once.`,
   });
 }
+
+function reportEmailHtml(opts: {
+  title: string;
+  subtitle: string;
+  senderName: string;
+  message: string;
+  fileName: string;
+}) {
+  const title = escapeHtml(opts.title);
+  const subtitle = escapeHtml(opts.subtitle);
+  const senderName = escapeHtml(opts.senderName);
+  const fileName = escapeHtml(opts.fileName);
+  const message = opts.message
+    ? `<tr><td style="padding:20px 32px 0 32px;">
+         <p style="margin:0;padding:14px 16px;background-color:#1e3a5f;border-radius:12px;border:1px solid #2a3f60;color:#dbe3ee;font-size:14px;line-height:1.6;">${escapeHtml(opts.message).replace(/\r?\n/g, "<br>")}</p>
+       </td></tr>`
+    : "";
+
+  return `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background-color:#eef1f5;font-family:Georgia,'Times New Roman',serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eef1f5;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background-color:#152540;border-radius:16px;border:1px solid #2a3f60;overflow:hidden;">
+            <tr>
+              <td style="padding:32px 32px 8px 32px;text-align:center;">
+                <p style="margin:0;color:#f5f7fa;font-size:20px;font-weight:700;">Computer Systems Servicing</p>
+                <p style="margin:4px 0 0 0;color:#9fb0c9;font-size:11px;letter-spacing:2px;text-transform:uppercase;">Progress Report</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px 32px 0 32px;text-align:center;">
+                <h1 style="margin:0;color:#f5f7fa;font-size:19px;font-weight:600;">${title}</h1>
+                <p style="margin:8px 0 0 0;color:#e0b34d;font-size:14px;">${subtitle}</p>
+                <p style="margin:12px 0 0 0;color:#c3cede;font-size:14px;line-height:1.6;">
+                  ${senderName} sent you this report. It is attached to this email as
+                  <strong style="color:#f5f7fa;">${fileName}</strong>.
+                </p>
+              </td>
+            </tr>
+            ${message}
+            <tr>
+              <td style="padding:22px 32px 30px 32px;">
+                <p style="margin:0;color:#8496b3;font-size:12px;line-height:1.6;text-align:center;">
+                  You can reply to this email to reach ${senderName} directly.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+export async function sendReportEmail(opts: {
+  to: string[];
+  subject: string;
+  message: string;
+  title: string;
+  subtitle: string;
+  senderName: string;
+  senderEmail: string | null;
+  fileName: string;
+  contentType: string;
+  content: Buffer;
+}) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  await getTransporter().sendMail({
+    from: `"Computer Systems Servicing" <${from}>`,
+    to: opts.to,
+    ...(opts.senderEmail ? { replyTo: `"${opts.senderName.replace(/"/g, "")}" <${opts.senderEmail}>` } : {}),
+    subject: opts.subject,
+    html: reportEmailHtml(opts),
+    text:
+      `${opts.title}\n${opts.subtitle}\n\n` +
+      `${opts.senderName} sent you this progress report (attached: ${opts.fileName}).\n` +
+      (opts.message ? `\n${opts.message}\n` : ""),
+    attachments: [
+      { filename: opts.fileName, content: opts.content, contentType: opts.contentType },
+    ],
+  });
+}

@@ -1,0 +1,98 @@
+import type { ReportData } from "./model";
+
+export type ReportFormat = "pdf" | "docx" | "xlsx";
+
+export const REPORT_FORMATS: { value: ReportFormat; label: string; hint: string }[] = [
+  { value: "pdf", label: "PDF", hint: "Best for printing & sharing" },
+  { value: "docx", label: "Word", hint: "Editable .docx" },
+  { value: "xlsx", label: "Excel", hint: "Data sheets + charts" },
+];
+
+export const REPORT_MIME: Record<ReportFormat, string> = {
+  pdf: "application/pdf",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+};
+
+function saveBlob(blob: Blob, fileName: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Give the browser a moment to start the download before releasing it.
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+// Builds the report file in the browser. Each generator (and its library) is
+// loaded on demand so none of this weighs on the normal dashboard pages.
+export async function generateReportBlob(format: ReportFormat, data: ReportData): Promise<Blob> {
+  if (format === "xlsx") {
+    const { buildXlsx } = await import("./xlsx");
+    return buildXlsx(data);
+  }
+  const { buildBlocks } = await import("./layout");
+  const blocks = buildBlocks(data);
+  if (format === "pdf") {
+    const { buildPdf } = await import("./pdf");
+    return buildPdf(data, blocks);
+  }
+  const { buildDocx } = await import("./docx");
+  return buildDocx(data, blocks);
+}
+
+export function reportFileName(format: ReportFormat, data: ReportData) {
+  return `${data.fileName}.${format}`;
+}
+
+export async function downloadReport(format: ReportFormat, data: ReportData) {
+  const blob = await generateReportBlob(format, data);
+  saveBlob(blob, reportFileName(format, data));
+}
+
+export function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Could not read the generated report."));
+    reader.onload = () => {
+      const result = String(reader.result);
+      resolve(result.slice(result.indexOf(",") + 1));
+    };
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Vercel rejects request bodies over 4.5MB; stay safely under it (base64 adds
+// about a third on top of the file itself).
+export const MAX_EMAIL_FILE_BYTES = 3 * 1024 * 1024;
+
+export async function emailReport(
+  format: ReportFormat,
+  data: ReportData,
+  message: { to: string[]; subject: string; note: string }
+) {
+  const blob = await generateReportBlob(format, data);
+  if (blob.size > MAX_EMAIL_FILE_BYTES) {
+    const mb = (blob.size / 1024 / 1024).toFixed(1);
+    throw new Error(
+      `This report is ${mb} MB — too large to email (limit ${MAX_EMAIL_FILE_BYTES / 1024 / 1024} MB). ` +
+        "Turn off the individual student pages, pick a smaller group, or download it instead."
+    );
+  }
+  const { authedFetch } = await import("../api-client");
+  return authedFetch("/api/reports/email", {
+    method: "POST",
+    body: JSON.stringify({
+      to: message.to,
+      subject: message.subject,
+      message: message.note,
+      format,
+      fileName: reportFileName(format, data),
+      title: data.title,
+      subtitle: data.subtitle,
+      content: await blobToBase64(blob),
+    }),
+  });
+}

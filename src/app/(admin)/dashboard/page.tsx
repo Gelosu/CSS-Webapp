@@ -4,9 +4,10 @@ import { useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useClassrooms, useStudents } from "@/lib/hooks";
 import { createStudent, deleteStudent, updateStudent } from "@/lib/students";
-import { studentProgressPercent, summarizeProgress } from "@/lib/progress";
+import { studentProgressPercent, studentProgressPoints, summarizeProgress } from "@/lib/progress";
 import { StatCard } from "@/components/StatCard";
-import { ProgressBar } from "@/components/ProgressBar";
+import { SplitProgressBar } from "@/components/ProgressBar";
+import { ReportMenu, type ReportScopeOption } from "@/components/ReportMenu";
 import { StudentFormModal } from "@/components/StudentFormModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { StudentDetail } from "@/components/StudentDetail";
@@ -66,6 +67,17 @@ export default function DashboardPage() {
     return { totalStudents, totalClassrooms, avgProgress, totalActivitiesCompleted };
   }, [scopedStudents, scopedClassrooms]);
 
+  // Admins can export everything or any one classroom; a teacher's only
+  // choice is their own classroom.
+  const reportScopes = useMemo<ReportScopeOption[]>(() => {
+    const perClassroom = scopedClassrooms.map((c) => ({
+      label: c.name,
+      scope: { type: "classroom" as const, classroomId: c.id },
+    }));
+    if (role === "teacher") return perClassroom;
+    return [{ label: "All students (whole school)", scope: { type: "all" as const } }, ...perClassroom];
+  }, [scopedClassrooms, role]);
+
   const selectedStudent = scopedStudents.find((s) => s.id === selectedStudentId) ?? null;
 
   if (selectedStudent) {
@@ -74,6 +86,8 @@ export default function DashboardPage() {
         <StudentDetail
           student={selectedStudent}
           classroom={classroomById.get(selectedStudent.classCode ?? "")}
+          peers={scopedStudents}
+          classrooms={scopedClassrooms}
           onBack={() => setSelectedStudentId(null)}
           onEdit={() => setEditingStudent(selectedStudent)}
           onDelete={() => setDeletingStudent(selectedStudent)}
@@ -115,14 +129,24 @@ export default function DashboardPage() {
             Overview of all students enrolled in the course app.
           </p>
         </div>
-        {role === "admin" && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark transition-colors"
-          >
-            + Add Student
-          </button>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {reportScopes.length > 0 && scopedStudents.length > 0 && (
+            <ReportMenu
+              label="Download reports"
+              scopes={reportScopes}
+              students={scopedStudents}
+              classrooms={scopedClassrooms}
+            />
+          )}
+          {role === "admin" && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark transition-colors"
+            >
+              + Add Student
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -166,6 +190,7 @@ export default function DashboardPage() {
               <tbody>
                 {filteredStudents.map((student) => {
                   const percent = studentProgressPercent(student);
+                  const points = studentProgressPoints(student);
                   const classroom = classroomById.get(student.classCode ?? "");
                   return (
                     <tr
@@ -183,7 +208,10 @@ export default function DashboardPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="w-32">
-                            <ProgressBar percent={percent} />
+                            <SplitProgressBar
+                              lessonPoints={points.lesson}
+                              activityPoints={points.activity}
+                            />
                           </div>
                           <span className="text-xs text-muted">{percent}%</span>
                         </div>

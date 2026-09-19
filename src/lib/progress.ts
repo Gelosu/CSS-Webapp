@@ -6,7 +6,15 @@ export interface ProgressSummary {
   totalLessons: number;
   activitiesCompleted: number;
   totalActivities: number;
+  // Sum of each lesson's completion fraction (0..1), so a half-read lesson
+  // counts as half — used for the lesson half of the overall percentage.
+  lessonFractionSum: number;
 }
+
+// Overall progress is split evenly: half of the bar is lessons, half is
+// activities. Finishing every lesson but no activities therefore reads 50%.
+export const LESSON_WEIGHT = 50;
+export const ACTIVITY_WEIGHT = 50;
 
 // Real-world learningProgress entries (written by the Android app) aren't
 // always the full { lesson, activity } shape the type promises — a partial
@@ -21,30 +29,61 @@ export function safeActivity(p: LessonProgress | undefined | null) {
   return p?.activity ?? { activityCompleted: false, score: 0 };
 }
 
-function isLessonComplete(p: LessonProgress) {
+export function isLessonComplete(p: LessonProgress | undefined | null) {
   const lesson = safeLesson(p);
   return lesson.total > 0 && lesson.completed >= lesson.total;
+}
+
+// 0..1 — how much of a single lesson's pages have been finished.
+export function lessonFraction(p: LessonProgress | undefined | null) {
+  const lesson = safeLesson(p);
+  if (!(lesson.total > 0)) return 0;
+  return Math.min(1, Math.max(0, lesson.completed / lesson.total));
 }
 
 export function summarizeProgress(
   learningProgress: Student["learningProgress"] | undefined
 ): ProgressSummary {
   const entries = Object.values(learningProgress ?? {});
+  // A student whose record is missing some lessons still owes all of them,
+  // so the denominator never drops below the curriculum length.
+  const total = Math.max(entries.length, CURRICULUM_LESSONS.length);
   return {
     lessonsCompleted: entries.filter(isLessonComplete).length,
-    totalLessons: entries.length,
+    totalLessons: total,
     activitiesCompleted: entries.filter((p) => safeActivity(p).activityCompleted).length,
-    totalActivities: entries.length,
+    totalActivities: total,
+    lessonFractionSum: entries.reduce((sum, p) => sum + lessonFraction(p), 0),
   };
 }
 
-export function progressPercent(summary: ProgressSummary): number {
+// The lesson half of the bar, 0..LESSON_WEIGHT.
+export function lessonPoints(summary: ProgressSummary): number {
   if (!summary.totalLessons) return 0;
-  return Math.round((summary.lessonsCompleted / summary.totalLessons) * 100);
+  return (summary.lessonFractionSum / summary.totalLessons) * LESSON_WEIGHT;
+}
+
+// The activity half of the bar, 0..ACTIVITY_WEIGHT.
+export function activityPoints(summary: ProgressSummary): number {
+  if (!summary.totalActivities) return 0;
+  return (summary.activitiesCompleted / summary.totalActivities) * ACTIVITY_WEIGHT;
+}
+
+export function progressPercent(summary: ProgressSummary): number {
+  return Math.round(lessonPoints(summary) + activityPoints(summary));
 }
 
 export function studentProgressPercent(student: Student): number {
   return progressPercent(summarizeProgress(student.learningProgress));
+}
+
+export function studentProgressPoints(student: Student) {
+  const summary = summarizeProgress(student.learningProgress);
+  return {
+    lesson: lessonPoints(summary),
+    activity: activityPoints(summary),
+    total: progressPercent(summary),
+  };
 }
 
 export interface LessonBreakdownRow {

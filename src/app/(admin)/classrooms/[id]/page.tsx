@@ -11,8 +11,9 @@ import {
   setStudentClassCode,
   updateStudent,
 } from "@/lib/students";
-import { studentProgressPercent } from "@/lib/progress";
-import { ProgressBar } from "@/components/ProgressBar";
+import { studentProgressPercent, studentProgressPoints } from "@/lib/progress";
+import { SplitProgressBar } from "@/components/ProgressBar";
+import { ReportMenu } from "@/components/ReportMenu";
 import { StudentFormModal } from "@/components/StudentFormModal";
 import { StudentDetail } from "@/components/StudentDetail";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -133,14 +134,29 @@ export default function ClassroomDetailPage() {
               {classroom?.name ?? "Loading..."}
             </h1>
           </div>
-          {role === "admin" && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark transition-colors"
-            >
-              + Create Student
-            </button>
-          )}
+          <div className="flex shrink-0 items-center gap-2">
+            {classroom && roster.length > 0 && (
+              <ReportMenu
+                label="Download report"
+                scopes={[
+                  {
+                    label: `${classroom.name} (${roster.length} students)`,
+                    scope: { type: "classroom", classroomId: classroom.id },
+                  },
+                ]}
+                students={students}
+                classrooms={classrooms}
+              />
+            )}
+            {role === "admin" && (
+              <button
+                onClick={() => setShowAddModal(true)}
+                className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark transition-colors"
+              >
+                + Create Student
+              </button>
+            )}
+          </div>
         </div>
         {classroom?.description && (
           <p className="mt-1 pl-11 text-sm text-muted">{classroom.description}</p>
@@ -190,6 +206,8 @@ export default function ClassroomDetailPage() {
         <StudentDetail
           student={selectedStudent}
           classroom={classroom}
+          peers={students}
+          classrooms={classrooms}
           onBack={() => setSelectedStudentId(null)}
           onEdit={() => setEditingStudent(selectedStudent)}
           onDelete={() => setDeletingStudent(selectedStudent)}
@@ -250,6 +268,7 @@ export default function ClassroomDetailPage() {
                   <tbody>
                     {roster.map((student) => {
                       const percent = studentProgressPercent(student);
+                      const points = studentProgressPoints(student);
                       return (
                         <tr
                           key={student.id}
@@ -263,7 +282,10 @@ export default function ClassroomDetailPage() {
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <div className="w-32">
-                                <ProgressBar percent={percent} />
+                                <SplitProgressBar
+                                  lessonPoints={points.lesson}
+                                  activityPoints={points.activity}
+                                />
                               </div>
                               <span className="text-xs text-muted">{percent}%</span>
                             </div>
