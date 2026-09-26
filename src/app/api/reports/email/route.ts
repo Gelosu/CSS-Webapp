@@ -1,4 +1,4 @@
-import { del } from "@vercel/blob";
+import { del, get } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { ApiError, getAdminDb, requireRole } from "@/lib/firebase-admin";
 import { sendReportEmail } from "@/lib/mailer";
@@ -10,7 +10,8 @@ const MAX_RECIPIENTS = 10;
 // limit never applies; this is the real remaining constraint.
 const MAX_FILE_BYTES = 18 * 1024 * 1024;
 // Only ever fetch blobs from our own Vercel Blob store, never an arbitrary URL.
-const BLOB_HOSTNAME_RE = /^[a-z0-9-]+\.public\.blob\.vercel-storage\.com$/i;
+// Uploads use the "private" store, so this is always <storeId>.private.blob.vercel-storage.com.
+const BLOB_HOSTNAME_RE = /^[a-z0-9-]+\.private\.blob\.vercel-storage\.com$/i;
 
 const FORMATS = {
   pdf: {
@@ -73,9 +74,11 @@ export async function POST(request: Request) {
       throw new ApiError(400, "Invalid report file reference.");
     }
 
-    const fileRes = await fetch(blobUrl);
-    if (!fileRes.ok) throw new ApiError(400, "Could not retrieve the uploaded report file.");
-    const content = Buffer.from(await fileRes.arrayBuffer());
+    const fetched = await get(blobUrl, { access: "private" }).catch(() => null);
+    if (!fetched || fetched.statusCode !== 200) {
+      throw new ApiError(400, "Could not retrieve the uploaded report file.");
+    }
+    const content = Buffer.from(await new Response(fetched.stream).arrayBuffer());
     if (content.length === 0 || content.length > MAX_FILE_BYTES) {
       throw new ApiError(400, "The report file is empty or too large to email.");
     }

@@ -81,7 +81,7 @@ export async function emailReport(
   const { upload } = await import("@vercel/blob/client");
   const fileName = reportFileName(format, data);
   const uploaded = await upload(`report-uploads/${crypto.randomUUID()}-${fileName}`, blob, {
-    access: "public",
+    access: "private",
     handleUploadUrl: "/api/reports/blob-upload",
     contentType: REPORT_MIME[format],
     headers: { Authorization: `Bearer ${idToken}` },
