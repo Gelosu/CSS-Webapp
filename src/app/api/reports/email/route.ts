@@ -1,10 +1,16 @@
+import { del } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { ApiError, getAdminDb, requireRole } from "@/lib/firebase-admin";
 import { sendReportEmail } from "@/lib/mailer";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_RECIPIENTS = 10;
-const MAX_FILE_BYTES = 4 * 1024 * 1024;
+// Gmail's own attachment ceiling (~25MB after MIME/base64 overhead) — the file
+// arrives here already uploaded to Vercel Blob, so Vercel's 4.5MB request-body
+// limit never applies; this is the real remaining constraint.
+const MAX_FILE_BYTES = 18 * 1024 * 1024;
+// Only ever fetch blobs from our own Vercel Blob store, never an arbitrary URL.
+const BLOB_HOSTNAME_RE = /^[a-z0-9-]+\.public\.blob\.vercel-storage\.com$/i;
 
 const FORMATS = {
   pdf: {
@@ -29,7 +35,7 @@ interface Body {
   fileName?: string;
   title?: string;
   subtitle?: string;
-  content?: string; // base64
+  blobUrl?: string; // Vercel Blob URL the report file was uploaded to
 }
 
 function clean(value: unknown, max: number) {
@@ -37,9 +43,11 @@ function clean(value: unknown, max: number) {
 }
 
 export async function POST(request: Request) {
+  let blobUrl: string | undefined;
   try {
     const caller = await requireRole(request, ["admin", "teacher"]);
     const body = (await request.json()) as Body;
+    blobUrl = body.blobUrl;
 
     const to = Array.from(
       new Set((body.to ?? []).map((e) => String(e).trim().toLowerCase()).filter(Boolean))
@@ -53,9 +61,21 @@ export async function POST(request: Request) {
 
     const format = body.format && body.format in FORMATS ? body.format : null;
     if (!format) throw new ApiError(400, "Unsupported report format.");
-    if (!body.content) throw new ApiError(400, "The report file is missing.");
+    if (!blobUrl) throw new ApiError(400, "The report file is missing.");
 
-    const content = Buffer.from(body.content, "base64");
+    let parsedBlobUrl: URL;
+    try {
+      parsedBlobUrl = new URL(blobUrl);
+    } catch {
+      throw new ApiError(400, "Invalid report file reference.");
+    }
+    if (parsedBlobUrl.protocol !== "https:" || !BLOB_HOSTNAME_RE.test(parsedBlobUrl.hostname)) {
+      throw new ApiError(400, "Invalid report file reference.");
+    }
+
+    const fileRes = await fetch(blobUrl);
+    if (!fileRes.ok) throw new ApiError(400, "Could not retrieve the uploaded report file.");
+    const content = Buffer.from(await fileRes.arrayBuffer());
     if (content.length === 0 || content.length > MAX_FILE_BYTES) {
       throw new ApiError(400, "The report file is empty or too large to email.");
     }
@@ -97,5 +117,11 @@ export async function POST(request: Request) {
     }
     const message = err instanceof Error ? err.message : "Failed to send the report.";
     return NextResponse.json({ error: message }, { status: 500 });
+  } finally {
+    // Best-effort cleanup: the uploaded file only ever needed to reach this
+    // request, whether the send succeeded or failed.
+    if (blobUrl) {
+      await del(blobUrl).catch(() => {});
+    }
   }
 }
