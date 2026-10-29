@@ -1,5 +1,6 @@
 import { getAdminDb } from "./firebase-admin";
 import { DEFAULT_APK_DOWNLOAD_URL, toDriveDirectDownloadUrl } from "./constants";
+import { getLatestRelease } from "./app-release";
 import type { Database } from "firebase-admin/database";
 
 export type ConsumeResult =
@@ -26,6 +27,10 @@ async function resolveDownloadUrl(
 ): Promise<ConsumeResult> {
   const classroomSnapshot = await db.ref(`classrooms/${classroomId}`).get();
   if (!classroomSnapshot.exists()) return { ok: false, reason: "not-found" };
+
+  // the invite always gives the newest published release; the classroom's own link is only the fallback
+  const latest = await getLatestRelease().catch(() => null);
+  if (latest?.assetUrl) return { ok: true, downloadUrl: latest.assetUrl };
 
   const downloadUrl = classroomSnapshot.val().downloadUrl as string | undefined;
   return { ok: true, downloadUrl: toDriveDirectDownloadUrl(downloadUrl || DEFAULT_APK_DOWNLOAD_URL) };
