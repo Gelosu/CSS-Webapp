@@ -3,10 +3,14 @@ import { getClassroomByCode } from "@/lib/classroom-lookup";
 import { Brand } from "@/components/Brand";
 import { CopyEmailButton } from "@/components/CopyEmailButton";
 
-const MESSAGES: Record<"not-found" | "used", { title: string; body: string }> = {
+const MESSAGES: Record<"not-found" | "used" | "expired", { title: string; body: string }> = {
   "not-found": {
     title: "Link not found",
     body: "This download link doesn't exist. Please ask your instructor to send you a new one.",
+  },
+  expired: {
+    title: "Link expired",
+    body: "This download link has expired. Please ask your instructor to resend it.",
   },
   used: {
     title: "Link already used",
@@ -70,6 +74,7 @@ export default async function DownloadTokenPage({
         </a>
         <p className="mt-4 text-xs text-muted">
           This is a one-time link — once you download, it can&apos;t be used again.
+          {peek.expiresAt ? ` It expires on ${new Date(peek.expiresAt).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Manila" })}.` : ""}
         </p>
       </div>
     </div>

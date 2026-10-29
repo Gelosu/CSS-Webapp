@@ -31,6 +31,7 @@ export function subscribeToInvites(
         status: data.status,
         createdAt: data.createdAt ?? 0,
         usedAt: data.usedAt ?? null,
+        expiresAt: data.expiresAt ?? null,
       } satisfies DownloadInvite));
       invites.sort((a, b) => b.createdAt - a.createdAt);
       onData(invites);
@@ -44,7 +45,8 @@ export function subscribeToInvites(
 // the old one stays whatever it was (pending or used) as history.
 export async function createDownloadInvite(
   classroomId: string,
-  email: string
+  email: string,
+  expiresAt: number | null = null
 ): Promise<string> {
   const newRef = push(invitesRef());
   if (!newRef.key) throw new Error("Failed to create download invite.");
@@ -54,6 +56,7 @@ export async function createDownloadInvite(
     status: "pending",
     createdAt: serverTimestamp(),
     usedAt: null,
+    expiresAt,
   });
   return newRef.key;
 }

@@ -43,6 +43,8 @@ export interface DownloadInvite {
   status: InviteStatus;
   createdAt: number;
   usedAt: number | null;
+  /** When the link stops working (ms since epoch); null = no time limit. */
+  expiresAt: number | null;
 }
 
 export type StaffRole = "admin" | "teacher";

@@ -27,11 +27,18 @@ function escapeHtml(value: string) {
     .replace(/"/g, "&quot;");
 }
 
+function formatExpiry(expiresAt: number | null | undefined) {
+  if (!expiresAt) return null;
+  return new Date(expiresAt).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Manila" });
+}
+
 function downloadInviteEmailHtml(opts: {
   classroomName: string;
   classCode: string;
   downloadLink: string;
+  expiresAt?: number | null;
 }) {
+  const expiry = formatExpiry(opts.expiresAt);
   const classroomName = escapeHtml(opts.classroomName);
   const classCode = escapeHtml(opts.classCode);
 
@@ -88,7 +95,8 @@ function downloadInviteEmailHtml(opts: {
               <td style="padding:20px 32px 32px 32px;">
                 <p style="margin:0;color:#8496b3;font-size:12px;line-height:1.6;text-align:center;">
                   This is a <strong style="color:#c3cede;">one-time link</strong> — once opened, it can&rsquo;t be
-                  used again. If you need another copy, ask your instructor to resend it.
+                  used again.${expiry ? ` It expires on <strong style="color:#c3cede;">${expiry}</strong>.` : ""}
+                  If you need another copy, ask your instructor to resend it.
                 </p>
               </td>
             </tr>
@@ -108,6 +116,7 @@ export async function sendDownloadInviteEmail(opts: {
   classroomName: string;
   classCode: string;
   downloadLink: string;
+  expiresAt?: number | null;
 }) {
   const from = process.env.SMTP_FROM || process.env.SMTP_USER;
   await getTransporter().sendMail({
@@ -120,7 +129,8 @@ export async function sendDownloadInviteEmail(opts: {
       `Classroom: ${opts.classroomName}\n` +
       `Class code: ${opts.classCode}\n\n` +
       `Download (one-time link): ${opts.downloadLink}\n\n` +
-      `This link can only be used once.`,
+      `This link can only be used once.` +
+      (opts.expiresAt ? ` It expires on ${formatExpiry(opts.expiresAt)}.` : ""),
   });
 }
 
@@ -206,5 +216,73 @@ export async function sendReportEmail(opts: {
     attachments: [
       { filename: opts.fileName, content: opts.content, contentType: opts.contentType },
     ],
+  });
+}
+
+function appUpdateEmailHtml(opts: { version: string; notes: string; updateLink: string }) {
+  const version = escapeHtml(opts.version);
+  const notes = opts.notes
+    ? `<tr><td style="padding:18px 32px 0 32px;">
+         <p style="margin:0;padding:14px 16px;background-color:#1e3a5f;border-radius:12px;border:1px solid #2a3f60;color:#dbe3ee;font-size:13px;line-height:1.6;">${escapeHtml(opts.notes).replace(/\r?\n/g, "<br>")}</p>
+       </td></tr>`
+    : "";
+  return `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background-color:#eef1f5;font-family:Georgia,'Times New Roman',serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eef1f5;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background-color:#152540;border-radius:16px;border:1px solid #2a3f60;overflow:hidden;">
+            <tr>
+              <td style="padding:32px 32px 8px 32px;text-align:center;">
+                <p style="margin:0;color:#f5f7fa;font-size:20px;font-weight:700;">Computer Systems Servicing</p>
+                <p style="margin:4px 0 0 0;color:#9fb0c9;font-size:11px;letter-spacing:2px;text-transform:uppercase;">App update</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px 32px 0 32px;text-align:center;">
+                <h1 style="margin:0;color:#f5f7fa;font-size:19px;font-weight:600;">A new version is ready</h1>
+                <p style="margin:8px 0 0 0;color:#e0b34d;font-size:22px;font-weight:700;letter-spacing:2px;">${version}</p>
+                <p style="margin:12px 0 0 0;color:#c3cede;font-size:14px;line-height:1.6;">
+                  Please update the app to get the latest lessons, fixes and improvements. Your progress stays on your account.
+                </p>
+              </td>
+            </tr>
+            ${notes}
+            <tr>
+              <td style="padding:26px 32px 0 32px;text-align:center;">
+                <a href="${opts.updateLink}" style="display:inline-block;background-color:#c8962c;color:#152540;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:9999px;">
+                  Update the app
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px 30px 32px;">
+                <p style="margin:0;color:#8496b3;font-size:12px;line-height:1.6;text-align:center;">
+                  This link <strong style="color:#c3cede;">never expires</strong> and always gives you the newest version.
+                  You can also update from inside the app when it shows &ldquo;Update available&rdquo;.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+export async function sendAppUpdateEmail(opts: { to: string; version: string; notes: string; updateLink: string }) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  await getTransporter().sendMail({
+    from: `"Computer Systems Servicing" <${from}>`,
+    to: opts.to,
+    subject: `App update available — version ${opts.version}`,
+    html: appUpdateEmailHtml(opts),
+    text:
+      `A new version (${opts.version}) of the Computer Systems Servicing app is ready.\n\n` +
+      (opts.notes ? `${opts.notes}\n\n` : "") +
+      `Update here (this link never expires): ${opts.updateLink}\n\n` +
+      `You can also update from inside the app when it shows "Update available".`,
   });
 }

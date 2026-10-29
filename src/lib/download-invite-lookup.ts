@@ -4,11 +4,11 @@ import type { Database } from "firebase-admin/database";
 
 export type ConsumeResult =
   | { ok: true; downloadUrl: string }
-  | { ok: false; reason: "not-found" | "used" };
+  | { ok: false; reason: "not-found" | "used" | "expired" };
 
 export type PeekResult =
-  | { ok: true; classroomId: string; email: string }
-  | { ok: false; reason: "not-found" | "used" };
+  | { ok: true; classroomId: string; email: string; expiresAt: number | null }
+  | { ok: false; reason: "not-found" | "used" | "expired" };
 
 // Large APKs (200MB+) over a mobile connection routinely get interrupted and
 // resumed — and Android's download manager resumes by re-requesting the
@@ -31,6 +31,10 @@ async function resolveDownloadUrl(
   return { ok: true, downloadUrl: toDriveDirectDownloadUrl(downloadUrl || DEFAULT_APK_DOWNLOAD_URL) };
 }
 
+function isExpired(expiresAt: number | null | undefined): boolean {
+  return typeof expiresAt === "number" && Date.now() > expiresAt;
+}
+
 function withinResumeGrace(usedAt: number | null | undefined): boolean {
   return Boolean(usedAt) && Date.now() - (usedAt as number) < RESUME_GRACE_MS;
 }
@@ -48,11 +52,14 @@ export async function peekDownloadInvite(token: string): Promise<PeekResult> {
     email: string;
     status: "pending" | "used";
     usedAt: number | null;
+    expiresAt?: number | null;
   };
   if (invite.status === "used" && !withinResumeGrace(invite.usedAt)) {
     return { ok: false, reason: "used" };
   }
-  return { ok: true, classroomId: invite.classroomId, email: invite.email };
+  // a link that was already opened keeps working for the short resume window; an unopened one stops at its expiry
+  if (invite.status === "pending" && isExpired(invite.expiresAt)) return { ok: false, reason: "expired" };
+  return { ok: true, classroomId: invite.classroomId, email: invite.email, expiresAt: invite.expiresAt ?? null };
 }
 
 // Atomically flips a pending invite to "used" so the same token can never be
@@ -71,7 +78,12 @@ export async function consumeDownloadInvite(token: string): Promise<ConsumeResul
     classroomId: string;
     status: "pending" | "used";
     usedAt: number | null;
+    expiresAt?: number | null;
   };
+
+  if (existingData.status === "pending" && isExpired(existingData.expiresAt)) {
+    return { ok: false, reason: "expired" };
+  }
 
   if (existingData.status === "used") {
     if (withinResumeGrace(existingData.usedAt)) {
@@ -111,7 +123,8 @@ export async function consumeDownloadInvite(token: string): Promise<ConsumeResul
 // email in one request without a signed-in client SDK session.
 export async function createDownloadInviteAdmin(
   classroomId: string,
-  email: string
+  email: string,
+  expiresAt: number | null = null
 ): Promise<string> {
   const db = getAdminDb();
   const newRef = db.ref("downloadInvites").push();
@@ -122,6 +135,7 @@ export async function createDownloadInviteAdmin(
     status: "pending",
     createdAt: Date.now(),
     usedAt: null,
+    expiresAt,
   });
   return newRef.key;
 }

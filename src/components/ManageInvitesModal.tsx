@@ -14,6 +14,26 @@ interface SendResult {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// how long a link stays valid; the teacher/admin picks one per batch
+const DURATIONS: { label: string; hours: number }[] = [
+  { label: "30 minutes", hours: 0.5 },
+  { label: "1 hour", hours: 1 },
+  { label: "6 hours", hours: 6 },
+  { label: "24 hours", hours: 24 },
+  { label: "3 days", hours: 72 },
+  { label: "7 days", hours: 168 },
+  { label: "30 days", hours: 720 },
+  { label: "90 days", hours: 2160 },
+];
+
+function formatDate(ms: number) {
+  return new Date(ms).toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Manila" });
+}
+
+function isExpired(invite: DownloadInvite) {
+  return invite.status === "pending" && invite.expiresAt !== null && Date.now() > invite.expiresAt;
+}
+
 function latestByEmail(invites: DownloadInvite[]): DownloadInvite[] {
   const latest = new Map<string, DownloadInvite>();
   for (const invite of invites) {
@@ -43,11 +63,12 @@ export function ManageInvitesModal({
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sendResults, setSendResults] = useState<SendResult[] | null>(null);
+  const [expiresInHours, setExpiresInHours] = useState(168);
 
   async function sendInvites(emails: string[]): Promise<SendResult[]> {
     const data = (await authedFetch("/api/download-invites", {
       method: "POST",
-      body: JSON.stringify({ classroomId, emails }),
+      body: JSON.stringify({ classroomId, emails, expiresInHours }),
     })) as { results: SendResult[] };
     return data.results;
   }
@@ -170,10 +191,28 @@ export function ManageInvitesModal({
           </ul>
         )}
 
+        <div>
+          <label className="mb-1 block text-xs font-medium text-muted">Link expires after</label>
+          <select
+            value={expiresInHours}
+            onChange={(e) => setExpiresInHours(Number(e.target.value))}
+            className="w-full rounded-lg border border-border bg-surface-alt px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            {DURATIONS.map((d) => (
+              <option key={d.hours} value={d.hours}>
+                {d.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-muted">
+            Counted from the moment you send. Resend to give a student a fresh link with a new time.
+          </p>
+        </div>
+
         <p className="text-xs text-muted">
           Add each student&apos;s email to the list, then send. Each gets a one-time
           download link with the class code and a Download APK button — after it&apos;s
-          opened once, they&apos;ll need a &ldquo;Resend&rdquo; to download again.
+          opened once, or after the time above runs out, they&apos;ll need a &ldquo;Resend&rdquo;.
         </p>
 
         {error && <p className="text-sm text-danger">{error}</p>}
@@ -218,6 +257,7 @@ export function ManageInvitesModal({
                 <tr className="border-b border-border text-left text-xs text-muted">
                   <th className="px-3 py-2 font-medium">Email</th>
                   <th className="px-3 py-2 font-medium">Status</th>
+                  <th className="px-3 py-2 font-medium">Expires</th>
                   <th className="px-3 py-2 font-medium"></th>
                 </tr>
               </thead>
@@ -230,17 +270,20 @@ export function ManageInvitesModal({
                     <td className="whitespace-nowrap px-3 py-2">
                       <span
                         className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                          invite.status === "used"
+                          invite.status === "used" || isExpired(invite)
                             ? "bg-surface-alt text-muted"
                             : "bg-success/10 text-success"
                         }`}
                       >
-                        {invite.status === "used" ? "Used" : "Pending"}
+                        {invite.status === "used" ? "Used" : isExpired(invite) ? "Expired" : "Pending"}
                       </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-xs text-muted">
+                      {invite.expiresAt ? formatDate(invite.expiresAt) : "No limit"}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 text-right">
                       <div className="flex justify-end gap-2">
-                        {invite.status !== "used" && (
+                        {invite.status !== "used" && !isExpired(invite) && (
                           <button
                             type="button"
                             onClick={() => copyLink(invite.id)}
