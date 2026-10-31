@@ -7,6 +7,7 @@ import { useClassrooms, useStaff } from "@/lib/hooks";
 import { deleteStaffMember, updateStaffRole } from "@/lib/staff";
 import { TeacherFormModal } from "@/components/TeacherFormModal";
 import { SendApkLinkModal } from "@/components/SendApkLinkModal";
+import { StaffAsStudentsModal } from "@/components/StaffAsStudentsModal";
 import { StaffEditModal } from "@/components/StaffEditModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { StaffMember, StaffRole } from "@/types";
@@ -18,6 +19,7 @@ export default function RolesPage() {
   const { classrooms } = useClassrooms();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showApkModal, setShowApkModal] = useState(false);
+  const [showCleanupModal, setShowCleanupModal] = useState(false);
   const [editingMember, setEditingMember] = useState<StaffMember | null>(null);
   const [deletingMember, setDeletingMember] = useState<StaffMember | null>(null);
   const [updatingUid, setUpdatingUid] = useState<string | null>(null);
@@ -62,6 +64,12 @@ export default function RolesPage() {
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            onClick={() => setShowCleanupModal(true)}
+            className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface-alt transition-colors"
+          >
+            Teachers as students
+          </button>
           <button
             onClick={() => setShowApkModal(true)}
             className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface-alt transition-colors"
@@ -168,6 +176,7 @@ export default function RolesPage() {
 
       {showAddModal && <TeacherFormModal onClose={() => setShowAddModal(false)} />}
       {showApkModal && <SendApkLinkModal staff={staff} onClose={() => setShowApkModal(false)} />}
+      {showCleanupModal && <StaffAsStudentsModal onClose={() => setShowCleanupModal(false)} />}
       {editingMember && (
         <StaffEditModal member={editingMember} onClose={() => setEditingMember(null)} />
       )}
