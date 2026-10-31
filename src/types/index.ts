@@ -56,7 +56,10 @@ export interface StaffMember {
   role: StaffRole;
   // The one classroom this teacher is scoped to (adviser-style: one teacher,
   // one section). Null for admins and for teachers not yet assigned one.
+  // Kept for older code: the first of `classCodes`.
   classCode: string | null;
+  // Every classroom the teacher is assigned to (a teacher can have several).
+  classCodes: string[];
   createdAt: number;
 }
 

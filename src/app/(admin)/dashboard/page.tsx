@@ -14,7 +14,7 @@ import { StudentDetail } from "@/components/StudentDetail";
 import type { Student } from "@/types";
 
 export default function DashboardPage() {
-  const { role, classCode } = useAuth();
+  const { role, classCodes } = useAuth();
   const { students, loading: studentsLoading, error: studentsError } = useStudents();
   const { classrooms } = useClassrooms();
 
@@ -24,15 +24,15 @@ export default function DashboardPage() {
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
   const [deletingStudent, setDeletingStudent] = useState<Student | null>(null);
 
-  // Teachers are scoped to the one classroom they're assigned to — they never
+  // Teachers are scoped to the classrooms they're assigned to — they never
   // see students or classrooms outside it.
   const scopedStudents = useMemo(
-    () => (role === "teacher" ? students.filter((s) => s.classCode === classCode) : students),
-    [students, role, classCode]
+    () => (role === "teacher" ? students.filter((s) => classCodes.includes(s.classCode ?? "")) : students),
+    [students, role, classCodes]
   );
   const scopedClassrooms = useMemo(
-    () => (role === "teacher" ? classrooms.filter((c) => c.code === classCode) : classrooms),
-    [classrooms, role, classCode]
+    () => (role === "teacher" ? classrooms.filter((c) => classCodes.includes(c.code)) : classrooms),
+    [classrooms, role, classCodes]
   );
 
   const classroomById = useMemo(

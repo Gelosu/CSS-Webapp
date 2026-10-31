@@ -31,7 +31,15 @@ export function subscribeToStudents(
 // One-shot read, used where a live subscription would be unnecessary overhead
 // (e.g. a periodically-polled analytics view).
 export async function fetchStudentsOnce(): Promise<Student[]> {
-  return mapStudentsSnapshot(await get(usersRef()));
+  const students = mapStudentsSnapshot(await get(usersRef()));
+  // staff accounts are never students; if the staff list can't be read, keep everyone
+  try {
+    const staff = (await get(ref(getFirebaseDb(), "staff"))).val() as Record<string, unknown> | null;
+    const ids = new Set(Object.keys(staff ?? {}));
+    return students.filter((s) => !ids.has(s.id));
+  } catch {
+    return students;
+  }
 }
 
 export async function createStudent(input: CreateStudentInput) {

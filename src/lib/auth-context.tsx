@@ -24,7 +24,9 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   role: StaffRole | null;
-  // The one classroom this user (if a teacher) is scoped to. Null for admins.
+  // The classrooms this user (if a teacher) is scoped to. Empty for admins and unassigned teachers.
+  classCodes: string[];
+  // First of classCodes, for older code.
   classCode: string | null;
   roleLoading: boolean;
   configured: boolean;
@@ -54,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(isFirebaseConfigured);
   const [role, setRole] = useState<StaffRole | null>(null);
-  const [classCode, setClassCode] = useState<string | null>(null);
+  const [classCodes, setClassCodes] = useState<string[]>([]);
   // Tracks which uid `role` was last resolved for, so loading state can be
   // derived (role stale/absent for the current user = still loading) rather
   // than toggled synchronously inside the effect.
@@ -67,13 +69,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then((profile) => {
         if (cancelled) return;
         setRole(profile.role);
-        setClassCode(profile.classCode);
+        setClassCodes(profile.classCodes ?? (profile.classCode ? [profile.classCode] : []));
         setRoleResolvedForUid(user.uid);
       })
       .catch(() => {
         if (cancelled) return;
         setRole(null);
-        setClassCode(null);
+        setClassCodes([]);
         setRoleResolvedForUid(user.uid);
       });
     return () => {
@@ -87,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     const profile = await bootstrapRole();
     setRole(profile.role);
-    setClassCode(profile.classCode);
+    setClassCodes(profile.classCodes ?? (profile.classCode ? [profile.classCode] : []));
   }
 
   useEffect(() => {
@@ -130,6 +132,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       remember ? browserLocalPersistence : browserSessionPersistence
     );
     await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
+    // a student account must never get into the portal: check it is a teacher/admin before going on
+    try {
+      await bootstrapRole();
+    } catch (err) {
+      await signOut(getFirebaseAuth()).catch(() => {});
+      throw err;
+    }
     try {
       window.localStorage.setItem(REMEMBER_KEY, remember ? "1" : "0");
     } catch {}
@@ -146,7 +155,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         loading,
         role: user ? role : null,
-        classCode: user ? classCode : null,
+        classCodes: user ? classCodes : [],
+        classCode: user ? classCodes[0] ?? null : null,
         roleLoading,
         configured: isFirebaseConfigured,
         login,

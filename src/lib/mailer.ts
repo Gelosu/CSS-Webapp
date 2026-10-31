@@ -286,3 +286,85 @@ export async function sendAppUpdateEmail(opts: { to: string; version: string; no
       `You can also update from inside the app when it shows "Update available".`,
   });
 }
+
+function assignmentEmailHtml(opts: { name: string; classrooms: { name: string; code: string; isNew: boolean }[]; portalUrl: string }) {
+  const name = escapeHtml(opts.name);
+  const rows = opts.classrooms
+    .map(
+      (c) => `<tr>
+        <td style="padding:12px 16px;border-top:1px solid #2a3f60;">
+          <p style="margin:0;color:#f5f7fa;font-size:15px;font-weight:600;">${escapeHtml(c.name)}${c.isNew ? ' <span style="color:#e0b34d;font-size:10px;letter-spacing:1px;">NEW</span>' : ""}</p>
+          <p style="margin:6px 0 0 0;color:#9fb0c9;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;">Class code</p>
+          <p style="margin:2px 0 0 0;color:#e0b34d;font-size:22px;font-weight:700;letter-spacing:4px;">${escapeHtml(c.code)}</p>
+        </td></tr>`
+    )
+    .join("");
+  return `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background-color:#eef1f5;font-family:Georgia,'Times New Roman',serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eef1f5;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background-color:#152540;border-radius:16px;border:1px solid #2a3f60;overflow:hidden;">
+            <tr>
+              <td style="padding:32px 32px 8px 32px;text-align:center;">
+                <p style="margin:0;color:#f5f7fa;font-size:20px;font-weight:700;">Computer Systems Servicing</p>
+                <p style="margin:4px 0 0 0;color:#9fb0c9;font-size:11px;letter-spacing:2px;text-transform:uppercase;">Classroom assignment</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px 32px 0 32px;text-align:center;">
+                <h1 style="margin:0;color:#f5f7fa;font-size:19px;font-weight:600;">Hi ${name}, you have been assigned</h1>
+                <p style="margin:10px 0 0 0;color:#c3cede;font-size:14px;line-height:1.6;">
+                  Share these class codes with your students: they enter the code in the mobile app to join your class.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px 0 32px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#1e3a5f;border-radius:12px;border:1px solid #2a3f60;">
+                  ${rows}
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:26px 32px 0 32px;text-align:center;">
+                <a href="${opts.portalUrl}" style="display:inline-block;background-color:#c8962c;color:#152540;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:9999px;">
+                  Open the portal
+                </a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px 32px 30px 32px;">
+                <p style="margin:0;color:#8496b3;font-size:12px;line-height:1.6;text-align:center;">
+                  Sign in with this email address. If you did not expect this, please contact your administrator.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+}
+
+export async function sendClassroomAssignmentEmail(opts: {
+  to: string;
+  name: string;
+  classrooms: { name: string; code: string; isNew: boolean }[];
+  portalUrl: string;
+}) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const many = opts.classrooms.length > 1;
+  await getTransporter().sendMail({
+    from: `"Computer Systems Servicing" <${from}>`,
+    to: opts.to,
+    subject: `Classroom assignment — ${opts.classrooms.map((c) => c.name).join(", ")}`,
+    html: assignmentEmailHtml(opts),
+    text:
+      `Hi ${opts.name}, you have been assigned to ${many ? "these classrooms" : "this classroom"}:\n\n` +
+      opts.classrooms.map((c) => `${c.name} - class code ${c.code}${c.isNew ? " (new)" : ""}`).join("\n") +
+      `\n\nStudents enter the class code in the mobile app to join your class.\nPortal: ${opts.portalUrl}`,
+  });
+}

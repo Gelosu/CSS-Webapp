@@ -22,7 +22,8 @@ export function subscribeToStaff(
         fullName: data.fullName ?? "",
         email: data.email ?? "",
         role: data.role ?? "teacher",
-        classCode: data.classCode ?? null,
+        classCode: (Array.isArray(data.classCodes) ? data.classCodes[0] : data.classCode) ?? null,
+        classCodes: Array.isArray(data.classCodes) ? data.classCodes : data.classCode ? [data.classCode] : [],
         createdAt: data.createdAt ?? 0,
       } satisfies StaffMember));
       staff.sort((a, b) => a.fullName.localeCompare(b.fullName));
@@ -35,6 +36,7 @@ export function subscribeToStaff(
 export interface BootstrapProfile {
   role: StaffRole;
   classCode: string | null;
+  classCodes: string[];
 }
 
 export async function bootstrapRole(): Promise<BootstrapProfile> {
@@ -45,7 +47,7 @@ export async function createTeacher(input: {
   fullName: string;
   email: string;
   password: string;
-  classCode: string | null;
+  classCodes: string[];
 }) {
   await authedFetch("/api/staff", {
     method: "POST",
@@ -60,13 +62,19 @@ export async function updateStaffRole(uid: string, role: StaffRole) {
   });
 }
 
+/** Result of a create/update that may have e-mailed the teacher their class codes. */
+export interface AssignmentMailResult {
+  emailed?: boolean;
+  emailError?: string;
+}
+
 export async function updateStaffMember(
   uid: string,
   updates: {
     fullName?: string;
     email?: string;
     password?: string;
-    classCode?: string | null;
+    classCodes?: string[];
   }
 ) {
   await authedFetch(`/api/staff/${uid}`, {

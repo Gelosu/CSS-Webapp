@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
-import { ApiError, getAdminAuth, getAdminDb, requireRole } from "@/lib/firebase-admin";
+import { ApiError, classCodesOf, getAdminAuth, getAdminDb, requireRole } from "@/lib/firebase-admin";
+import { emailAssignment, resolveClassCodes } from "@/lib/staff-assignment";
 import type { StaffRole } from "@/types";
 
 interface UpdateStaffInput {
   role?: StaffRole;
   classCode?: string | null;
+  classCodes?: string[];
   fullName?: string;
   email?: string;
   password?: string;
@@ -18,7 +20,7 @@ export async function PATCH(
     const decoded = await requireRole(request, ["admin"]);
     const { uid } = await params;
     const body = (await request.json()) as UpdateStaffInput;
-    const { role, classCode, fullName, email, password } = body;
+    const { role, fullName, email, password } = body;
 
     if (uid === decoded.uid) {
       throw new ApiError(400, "Use Settings to manage your own account.");
@@ -36,15 +38,32 @@ export async function PATCH(
     }
 
     const dbUpdates: Record<string, unknown> = {};
+    const before = classCodesOf((await getAdminDb().ref(`staff/${uid}`).get()).val());
+    let after: string[] | null = null;
+    if (body.classCodes !== undefined || body.classCode !== undefined) {
+      after = await resolveClassCodes(body.classCodes ?? body.classCode);
+      dbUpdates.classCodes = after;
+      dbUpdates.classCode = after[0] ?? null;
+    }
     if (role !== undefined) dbUpdates.role = role;
-    if (classCode !== undefined) dbUpdates.classCode = classCode || null;
     if (fullName !== undefined) dbUpdates.fullName = fullName;
     if (email !== undefined) dbUpdates.email = email;
     if (Object.keys(dbUpdates).length > 0) {
       await getAdminDb().ref(`staff/${uid}`).update(dbUpdates);
     }
 
-    return NextResponse.json({ ok: true });
+    // newly assigned classrooms: e-mail the teacher the class code of every classroom they now have
+    let mail: { emailed: boolean; emailError?: string } = { emailed: false };
+    const added = (after ?? []).filter((c) => !before.includes(c));
+    if (after && added.length > 0) {
+      const member = (await getAdminDb().ref(`staff/${uid}`).get()).val() as { email?: string; fullName?: string } | null;
+      if (member?.email) {
+        const origin = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
+        mail = await emailAssignment({ to: member.email, name: member.fullName || member.email, classCodes: after, added, portalUrl: origin });
+      }
+    }
+
+    return NextResponse.json({ ok: true, ...mail });
   } catch (err) {
     if (err instanceof ApiError) {
       return NextResponse.json({ error: err.message }, { status: err.status });

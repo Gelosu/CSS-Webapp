@@ -64,7 +64,7 @@ export default function ClassroomDetailPage() {
   const params = useParams<{ id: string }>();
   const classroomId = params.id;
 
-  const { role, roleLoading, classCode } = useAuth();
+  const { role, roleLoading, classCodes } = useAuth();
   const { classrooms } = useClassrooms();
   const { students, loading } = useStudents();
 
@@ -92,7 +92,7 @@ export default function ClassroomDetailPage() {
   );
   const selectedStudent = roster.find((s) => s.id === selectedStudentId) ?? null;
 
-  const isOutOfScope = role === "teacher" && classCode !== classroomId;
+  const isOutOfScope = role === "teacher" && !classCodes.includes(classroomId);
 
   if (!loading && !classroom) {
     return (

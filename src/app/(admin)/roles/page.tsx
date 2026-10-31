@@ -118,8 +118,8 @@ export default function RolesPage() {
                       <td className="px-4 py-3 text-muted">
                         {member.role === "admin"
                           ? "—"
-                          : member.classCode
-                          ? classroomNameByCode.get(member.classCode) ?? member.classCode
+                          : member.classCodes.length > 0
+                          ? member.classCodes.map((c) => classroomNameByCode.get(c) ?? c).join(", ")
                           : "Unassigned"}
                       </td>
                       <td className="px-4 py-3">

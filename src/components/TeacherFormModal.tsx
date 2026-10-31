@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Modal } from "./Modal";
 import { useClassrooms } from "@/lib/hooks";
 import { createTeacher, DEFAULT_TEACHER_PASSWORD } from "@/lib/staff";
+import { ClassroomMultiSelect } from "./ClassroomMultiSelect";
 
 const inputClass =
   "w-full rounded-lg border border-border bg-surface-alt px-3 py-2 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary";
@@ -14,7 +15,7 @@ export function TeacherFormModal({ onClose }: { onClose: () => void }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState(DEFAULT_TEACHER_PASSWORD);
-  const [classCode, setClassCode] = useState("");
+  const [classCodes, setClassCodes] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,7 +24,7 @@ export function TeacherFormModal({ onClose }: { onClose: () => void }) {
     setError(null);
     setSubmitting(true);
     try {
-      await createTeacher({ fullName, email, password, classCode: classCode || null });
+      await createTeacher({ fullName, email, password, classCodes });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
@@ -57,22 +58,11 @@ export function TeacherFormModal({ onClose }: { onClose: () => void }) {
           />
         </div>
         <div>
-          <label className={labelClass}>Assigned classroom</label>
-          <select
-            value={classCode}
-            onChange={(e) => setClassCode(e.target.value)}
-            className={inputClass}
-          >
-            <option value="">Unassigned</option>
-            {classrooms.map((c) => (
-              <option key={c.id} value={c.code}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <label className={labelClass}>Assigned classrooms</label>
+          <ClassroomMultiSelect classrooms={classrooms} value={classCodes} onChange={setClassCodes} />
           <p className="mt-1 text-xs text-muted">
-            The teacher only sees students and data for this classroom. You can change this
-            later.
+            Tick every classroom this teacher handles. They only see students and data for these classrooms, and
+            they are emailed the class code of each one. You can change this later.
           </p>
         </div>
         <div>

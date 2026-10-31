@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Classroom, DownloadInvite, Student, StaffMember, SupportMessage, SupportTicket } from "@/types";
 import { subscribeToClassrooms } from "./classrooms";
 import { fetchStudentsOnce, subscribeToStudents } from "./students";
@@ -9,9 +9,14 @@ import { subscribeToStaff } from "./staff";
 import { subscribeToAllTickets, subscribeToOwnTickets, subscribeToMessages } from "./support-tickets";
 
 export function useStudents() {
-  const [students, setStudents] = useState<Student[]>([]);
+  const [allStudents, setStudents] = useState<Student[]>([]);
+  const [staffIds, setStaffIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // a teacher/admin account is never a student, even if it picked up a users/{uid} record
+  useEffect(() => subscribeToStaff((list) => setStaffIds(new Set(list.map((m) => m.uid))), () => {}), []);
+  const students = useMemo(() => allStudents.filter((s) => !staffIds.has(s.id)), [allStudents, staffIds]);
 
   useEffect(() => {
     const unsubscribe = subscribeToStudents(

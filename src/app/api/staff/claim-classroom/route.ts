@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ApiError, getAdminDb, requireRole } from "@/lib/firebase-admin";
+import { ApiError, classCodesOf, getAdminDb, requireRole } from "@/lib/firebase-admin";
 
 // Narrow self-service action: a teacher who has no classroom yet can claim
 // the one they just created as their own scope. Deliberately does NOT allow
@@ -15,14 +15,14 @@ export async function POST(request: Request) {
 
     const ref = getAdminDb().ref(`staff/${decoded.uid}`);
     const snapshot = await ref.get();
-    if (snapshot.val()?.classCode) {
+    if (classCodesOf(snapshot.val()).length > 0) {
       throw new ApiError(
         400,
         "You already have a classroom assigned. Ask an admin to change it."
       );
     }
 
-    await ref.update({ classCode });
+    await ref.update({ classCode, classCodes: [classCode] });
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof ApiError) {

@@ -24,7 +24,9 @@ export default function LoginPage() {
       router.replace("/dashboard");
     } catch (err) {
       setError(
-        configured
+        err instanceof Error && err.message.startsWith("This is a student account")
+          ? err.message
+          : configured
           ? "Invalid email or password."
           : err instanceof Error
           ? err.message

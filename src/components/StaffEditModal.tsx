@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { Modal } from "./Modal";
 import { useClassrooms } from "@/lib/hooks";
 import { updateStaffMember, DEFAULT_TEACHER_PASSWORD } from "@/lib/staff";
+import { ClassroomMultiSelect } from "./ClassroomMultiSelect";
 import type { StaffMember } from "@/types";
 
 const inputClass =
@@ -19,7 +20,7 @@ export function StaffEditModal({
 }) {
   const { classrooms } = useClassrooms();
   const [email, setEmail] = useState(member.email);
-  const [classCode, setClassCode] = useState(member.classCode ?? "");
+  const [classCodes, setClassCodes] = useState<string[]>(member.classCodes);
   const [newPassword, setNewPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,7 @@ export function StaffEditModal({
     e.preventDefault();
     const updates: Parameters<typeof updateStaffMember>[1] = {};
     if (email !== member.email) updates.email = email;
-    if ((classCode || null) !== member.classCode) updates.classCode = classCode || null;
+    if ([...classCodes].sort().join(",") !== [...member.classCodes].sort().join(",")) updates.classCodes = classCodes;
     if (newPassword) updates.password = newPassword;
     if (Object.keys(updates).length === 0) {
       onClose();
@@ -66,21 +67,11 @@ export function StaffEditModal({
 
         {member.role === "teacher" && (
           <div>
-            <label className={labelClass}>Assigned classroom</label>
-            <select
-              value={classCode}
-              onChange={(e) => setClassCode(e.target.value)}
-              className={inputClass}
-            >
-              <option value="">Unassigned</option>
-              {classrooms.map((c) => (
-                <option key={c.id} value={c.code}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <label className={labelClass}>Assigned classrooms</label>
+            <ClassroomMultiSelect classrooms={classrooms} value={classCodes} onChange={setClassCodes} />
             <p className="mt-1 text-xs text-muted">
-              The teacher only sees students and data for this classroom.
+              The teacher only sees students and data for these classrooms. When you add a classroom they are
+              emailed the class code of every classroom they have.
             </p>
           </div>
         )}

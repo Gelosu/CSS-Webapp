@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ApiError, getAdminAuth, getAdminDb, requireAdminUser } from "@/lib/firebase-admin";
+import { ApiError, getAdminAuth, getAdminDb, requireAdminUser, assertNotStaffEmail } from "@/lib/firebase-admin";
 import type { StudentInput } from "@/types";
 
 export async function PATCH(
@@ -11,6 +11,8 @@ export async function PATCH(
     const { uid } = await params;
     const body = (await request.json()) as Partial<StudentInput> & { password?: string };
     const { fullName, username, email, classCode, password } = body;
+
+    if (email) await assertNotStaffEmail(email);
 
     const authUpdates: { email?: string; password?: string; displayName?: string } = {};
     if (email) authUpdates.email = email;

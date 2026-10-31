@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ApiError, getAdminAuth, getAdminDb, requireRole } from "@/lib/firebase-admin";
+import { ApiError, assertNotStaffEmail, getAdminAuth, getAdminDb, requireRole } from "@/lib/firebase-admin";
 import { buildInitialLearningProgress } from "@/lib/progress";
 import type { CreateStudentInput } from "@/types";
 
@@ -12,6 +12,8 @@ export async function POST(request: Request) {
     if (!fullName || !username || !email || !password) {
       throw new ApiError(400, "fullName, username, email, and password are required.");
     }
+
+    await assertNotStaffEmail(email);
 
     const userRecord = await getAdminAuth().createUser({
       email,

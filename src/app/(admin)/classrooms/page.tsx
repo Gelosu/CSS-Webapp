@@ -15,7 +15,7 @@ import { ClassroomCard } from "@/components/ClassroomCard";
 import type { Classroom } from "@/types";
 
 export default function ClassroomsPage() {
-  const { role, classCode, refreshRole } = useAuth();
+  const { role, classCodes, refreshRole } = useAuth();
   const { classrooms: allClassrooms, loading, error } = useClassrooms();
   const { students } = useStudents();
 
@@ -24,18 +24,18 @@ export default function ClassroomsPage() {
   const [editingClassroom, setEditingClassroom] = useState<Classroom | null>(null);
   const [deletingClassroom, setDeletingClassroom] = useState<Classroom | null>(null);
 
-  // Teachers only ever see the one classroom they're assigned to.
+  // Teachers only ever see the classrooms they're assigned to.
   const classrooms = useMemo(
     () =>
       role === "teacher"
-        ? allClassrooms.filter((c) => c.code === classCode)
+        ? allClassrooms.filter((c) => classCodes.includes(c.code))
         : allClassrooms,
-    [allClassrooms, role, classCode]
+    [allClassrooms, role, classCodes]
   );
 
   // A teacher with no classroom yet can create one — it becomes theirs
   // automatically. Once they have one, they're done; one teacher, one class.
-  const canCreateClassroom = role === "admin" || (role === "teacher" && !classCode);
+  const canCreateClassroom = role === "admin" || (role === "teacher" && classCodes.length === 0);
 
   const filteredClassrooms = useMemo(() => {
     const term = search.trim().toLowerCase();

@@ -56,7 +56,31 @@ export type StaffRole = "admin" | "teacher";
 
 export interface StaffProfile {
   role: StaffRole;
+  /** First of classCodes (older code reads this). */
   classCode: string | null;
+  /** Every classroom the teacher is assigned to. */
+  classCodes: string[];
+}
+
+/** Reads the assigned classrooms of a staff record: the new list, or the old single classCode. */
+export function classCodesOf(data: { classCodes?: unknown; classCode?: unknown } | null | undefined): string[] {
+  if (!data) return [];
+  const list = Array.isArray(data.classCodes)
+    ? (data.classCodes as unknown[])
+    : data.classCode
+    ? [data.classCode]
+    : [];
+  return list.filter((c): c is string => typeof c === "string" && c.length > 0);
+}
+
+/** A teacher/admin e-mail can never be used for a student account. */
+export async function assertNotStaffEmail(email: string) {
+  const wanted = email.trim().toLowerCase();
+  if (!wanted) return;
+  const staff = ((await getAdminDb().ref("staff").get()).val() ?? {}) as Record<string, { email?: string }>;
+  if (Object.values(staff).some((m) => (m?.email ?? "").trim().toLowerCase() === wanted)) {
+    throw new ApiError(409, "That email belongs to a teacher or admin account, so it can't be used for a student.");
+  }
 }
 
 // Accounts that existed before the role system shipped have no staff/{uid}
@@ -70,7 +94,13 @@ export async function getOrBootstrapStaffProfile(
   const snapshot = await ref.get();
   if (snapshot.exists()) {
     const data = snapshot.val();
-    return { role: (data.role as StaffRole) ?? "admin", classCode: data.classCode ?? null };
+    const classCodes = classCodesOf(data);
+    return { role: (data.role as StaffRole) ?? "admin", classCode: classCodes[0] ?? null, classCodes };
+  }
+  // No staff record: this must be an old pre-role admin, never a student. A student account (it has a
+  // users/{uid} record) is not allowed into the portal.
+  if ((await getAdminDb().ref(`users/${uid}`).get()).exists()) {
+    throw new ApiError(403, "This is a student account. Students use the mobile app; the admin portal is for teachers and admins.");
   }
   await ref.set({
     uid,
@@ -78,9 +108,10 @@ export async function getOrBootstrapStaffProfile(
     email: email ?? "",
     role: "admin",
     classCode: null,
+    classCodes: [],
     createdAt: Date.now(),
   });
-  return { role: "admin", classCode: null };
+  return { role: "admin", classCode: null, classCodes: [] };
 }
 
 export async function requireRole(request: Request, allowed: StaffRole[]) {
@@ -89,7 +120,7 @@ export async function requireRole(request: Request, allowed: StaffRole[]) {
   if (!allowed.includes(profile.role)) {
     throw new ApiError(403, "You don't have permission to do that.");
   }
-  return { ...decoded, role: profile.role, classCode: profile.classCode };
+  return { ...decoded, role: profile.role, classCode: profile.classCode, classCodes: profile.classCodes };
 }
 
 export class ApiError extends Error {
