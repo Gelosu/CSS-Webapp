@@ -8,6 +8,9 @@ interface Account {
   uid: string;
   fullName: string;
   email: string;
+  staffName: string;
+  staffEmail: string;
+  staffRole: string;
 }
 
 // Teacher/admin accounts must not appear as students. This lists any that do and removes them from the student
@@ -54,8 +57,11 @@ export function StaffAsStudentsModal({ onClose }: { onClose: () => void }) {
           <ul className="mt-3 max-h-60 divide-y divide-border overflow-y-auto rounded-lg border border-border bg-surface-alt">
             {accounts.map((a) => (
               <li key={a.uid} className="px-3 py-2">
-                <p className="truncate text-sm font-medium text-foreground">{a.fullName || "(no name)"}</p>
-                <p className="truncate text-xs text-muted">{a.email}</p>
+                <p className="truncate text-sm font-medium text-foreground">
+                  {a.staffName || a.fullName || "(no name)"}
+                  {a.staffRole && <span className="ml-2 rounded-full bg-surface px-2 py-0.5 text-[11px] font-normal text-muted">{a.staffRole === "admin" ? "Admin" : "Teacher"}</span>}
+                </p>
+                <p className="truncate text-xs text-muted">{a.staffEmail || a.email || "no email on the student record"}</p>
               </li>
             ))}
           </ul>

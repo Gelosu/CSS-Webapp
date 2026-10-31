@@ -5,6 +5,10 @@ interface Found {
   uid: string;
   fullName: string;
   email: string;
+  // the teacher/admin account it belongs to, so the list always shows who it is
+  staffName: string;
+  staffEmail: string;
+  staffRole: string;
 }
 
 // Admin-only. Finds teacher/admin accounts that are also listed as students (their uid, or their email, matches a
@@ -16,7 +20,7 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as { dryRun?: boolean };
     const db = getAdminDb();
 
-    const staff = ((await db.ref("staff").get()).val() ?? {}) as Record<string, { email?: string }>;
+    const staff = ((await db.ref("staff").get()).val() ?? {}) as Record<string, { email?: string; fullName?: string; role?: string }>;
     const staffUids = new Set(Object.keys(staff));
     const staffEmails = new Set(
       Object.values(staff)
@@ -28,8 +32,18 @@ export async function POST(request: Request) {
     const found: Found[] = [];
     for (const [uid, data] of Object.entries(users)) {
       const email = (data?.email ?? "").trim().toLowerCase();
-      if (staffUids.has(uid) || (email && staffEmails.has(email))) {
-        found.push({ uid, fullName: data?.fullName ?? "", email: data?.email ?? "" });
+      const byUid = staffUids.has(uid);
+      const byEmail = !byUid && email ? Object.entries(staff).find(([, m]) => (m?.email ?? "").trim().toLowerCase() === email)?.[0] : undefined;
+      if (byUid || byEmail) {
+        const owner = staff[byUid ? uid : (byEmail as string)];
+        found.push({
+          uid,
+          fullName: data?.fullName ?? "",
+          email: data?.email ?? "",
+          staffName: owner?.fullName ?? "",
+          staffEmail: owner?.email ?? "",
+          staffRole: owner?.role ?? "",
+        });
       }
     }
 
