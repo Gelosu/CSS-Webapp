@@ -32,3 +32,10 @@ runs past the time limit, an admin can call `POST /api/releases/send` (signed in
 In **Manage download invites** the teacher/admin picks how long the new links last (30 minutes to 90 days, default
 7 days). A link stops working when its time is up (or after it has been opened once, apart from the short resume
 window). The table shows each link's expiry and an "Expired" status; **Resend** issues a fresh link.
+
+## Sending the APK link by hand
+
+**Role & Permission > Send APK link** (admins) opens a list of every teacher and admin (about five rows show, the rest
+scroll). Tick people, type any extra e-mail address, then **Send to selected**, or press **Send to all** to e-mail
+every staff account. It sends the same permanent `/update` link as the release e-mail (`POST /api/apk-link`, admin only).
+Teachers and admins also receive the automatic update e-mail for every release, like students.

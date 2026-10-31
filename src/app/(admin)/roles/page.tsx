@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useClassrooms, useStaff } from "@/lib/hooks";
 import { deleteStaffMember, updateStaffRole } from "@/lib/staff";
 import { TeacherFormModal } from "@/components/TeacherFormModal";
+import { SendApkLinkModal } from "@/components/SendApkLinkModal";
 import { StaffEditModal } from "@/components/StaffEditModal";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { StaffMember, StaffRole } from "@/types";
@@ -16,6 +17,7 @@ export default function RolesPage() {
   const { staff, loading } = useStaff();
   const { classrooms } = useClassrooms();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showApkModal, setShowApkModal] = useState(false);
   const [editingMember, setEditingMember] = useState<StaffMember | null>(null);
   const [deletingMember, setDeletingMember] = useState<StaffMember | null>(null);
   const [updatingUid, setUpdatingUid] = useState<string | null>(null);
@@ -59,12 +61,20 @@ export default function RolesPage() {
             Manage teacher and admin accounts for this portal.
           </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark transition-colors"
-        >
-          + Add Teacher
-        </button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <button
+            onClick={() => setShowApkModal(true)}
+            className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-surface-alt transition-colors"
+          >
+            Send APK link
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-on-primary hover:bg-primary-dark transition-colors"
+          >
+            + Add Teacher
+          </button>
+        </div>
       </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}
@@ -157,6 +167,7 @@ export default function RolesPage() {
       </div>
 
       {showAddModal && <TeacherFormModal onClose={() => setShowAddModal(false)} />}
+      {showApkModal && <SendApkLinkModal staff={staff} onClose={() => setShowApkModal(false)} />}
       {editingMember && (
         <StaffEditModal member={editingMember} onClose={() => setEditingMember(null)} />
       )}
