@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Classroom, Student } from "@/types";
 import { ProgressBar, SplitProgressBar } from "./ProgressBar";
 import {
@@ -29,6 +30,7 @@ export function StudentDetail({
   onBack,
   onEdit,
   onDelete,
+  onResetPassword,
 }: {
   student: Student;
   classroom: Classroom | undefined;
@@ -39,6 +41,8 @@ export function StudentDetail({
   onBack: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  // Only passed on admin pages: sets a new sign-in password for the student.
+  onResetPassword?: () => void;
 }) {
   const summary = summarizeProgress(student.learningProgress);
   const percent = progressPercent(summary);
@@ -68,7 +72,14 @@ export function StudentDetail({
               {student.fullName} · @{student.username} · {student.email}
             </p>
             <p className="mt-1 text-xs text-muted">
-              Classroom: {classroom?.name ?? "Unassigned"}
+              Classroom:{" "}
+              {classroom ? (
+                <Link href={`/classrooms/${classroom.id}`} className="text-primary hover:underline">
+                  {classroom.name}
+                </Link>
+              ) : (
+                "Unassigned"
+              )}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
@@ -78,6 +89,14 @@ export function StudentDetail({
               students={peers}
               classrooms={classrooms}
             />
+            {onResetPassword && (
+              <button
+                onClick={onResetPassword}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-alt transition-colors"
+              >
+                Reset password
+              </button>
+            )}
             <button
               onClick={onEdit}
               className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-alt transition-colors"

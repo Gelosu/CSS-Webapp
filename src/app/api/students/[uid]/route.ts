@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ApiError, getAdminAuth, getAdminDb, requireAdminUser, assertNotStaffEmail } from "@/lib/firebase-admin";
+import { ApiError, getAdminAuth, getAdminDb, requireAdminUser, requireRole, assertNotStaffEmail } from "@/lib/firebase-admin";
 import type { StudentInput } from "@/types";
 
 export async function PATCH(
@@ -11,6 +11,14 @@ export async function PATCH(
     const { uid } = await params;
     const body = (await request.json()) as Partial<StudentInput> & { password?: string };
     const { fullName, username, email, classCode, password } = body;
+
+    // a student's sign-in password can only be set by an admin account (teachers can edit the other details)
+    if (password !== undefined) {
+      await requireRole(request, ["admin"]);
+      if (typeof password !== "string" || password.length < 6) {
+        throw new ApiError(400, "The password needs at least 6 characters.");
+      }
+    }
 
     if (email) await assertNotStaffEmail(email);
 

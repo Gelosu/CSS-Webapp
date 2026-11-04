@@ -41,6 +41,25 @@ function ClassroomsIcon() {
   );
 }
 
+function StudentsIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 shrink-0"
+    >
+      <path d="M22 10 12 5 2 10l10 5 10-5z" />
+      <path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5" />
+      <path d="M22 10v6" />
+    </svg>
+  );
+}
+
 function SettingsIcon() {
   return (
     <svg
@@ -122,6 +141,7 @@ const BASE_NAV_ITEMS = [
 ];
 
 const ADMIN_NAV_ITEMS = [
+  { href: "/students", label: "Students", Icon: StudentsIcon },
   { href: "/roles", label: "Role & Permission", Icon: RolesIcon },
 ];
 
