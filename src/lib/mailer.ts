@@ -368,3 +368,49 @@ export async function sendClassroomAssignmentEmail(opts: {
       `\n\nStudents enter the class code in the mobile app to join your class.\nPortal: ${opts.portalUrl}`,
   });
 }
+
+export async function sendPasswordResetCodeEmail(opts: { to: string; code: string; minutes: number }) {
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const code = escapeHtml(opts.code);
+  await getTransporter().sendMail({
+    from: `"Computer Systems Servicing" <${from}>`,
+    to: opts.to,
+    subject: `Your password reset code: ${opts.code}`,
+    html: `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background-color:#eef1f5;font-family:Georgia,'Times New Roman',serif;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eef1f5;padding:32px 16px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background-color:#152540;border-radius:16px;border:1px solid #2a3f60;overflow:hidden;">
+            <tr>
+              <td style="padding:32px 32px 8px 32px;text-align:center;">
+                <p style="margin:0;color:#f5f7fa;font-size:20px;font-weight:700;">Computer Systems Servicing</p>
+                <p style="margin:4px 0 0 0;color:#9fb0c9;font-size:11px;letter-spacing:2px;text-transform:uppercase;">Password reset</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px 32px 0 32px;text-align:center;">
+                <p style="margin:0;color:#c3cede;font-size:14px;line-height:1.6;">Enter this code in the app to choose a new password.</p>
+                <p style="margin:18px 0 0 0;color:#e0b34d;font-size:38px;font-weight:700;letter-spacing:10px;">${code}</p>
+                <p style="margin:14px 0 0 0;color:#9fb0c9;font-size:12px;">The code works for ${opts.minutes} minutes.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:22px 32px 30px 32px;">
+                <p style="margin:0;color:#8496b3;font-size:12px;line-height:1.6;text-align:center;">
+                  If you did not ask to reset your password, you can ignore this email. Nobody can change your password without this code.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`,
+    text:
+      `Your password reset code is ${opts.code}\n\nEnter it in the Computer Systems Servicing app to choose a new password. ` +
+      `It works for ${opts.minutes} minutes. If you did not ask for this, ignore this email.`,
+  });
+}

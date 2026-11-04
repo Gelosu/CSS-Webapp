@@ -3,6 +3,8 @@ import { getFirebaseDb } from "./firebase";
 import { authedFetch } from "./api-client";
 import type { CreateStudentInput, Student, StudentInput } from "@/types";
 
+export const DEFAULT_STUDENT_PASSWORD = "Student12345";
+
 function usersRef() {
   return ref(getFirebaseDb(), "users");
 }

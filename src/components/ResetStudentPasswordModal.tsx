@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Modal } from "./Modal";
-import { updateStudent } from "@/lib/students";
+import { DEFAULT_STUDENT_PASSWORD, updateStudent } from "@/lib/students";
 import type { Student } from "@/types";
 
 const inputClass =
@@ -34,22 +34,26 @@ export function ResetStudentPasswordModal({
   const [savedPassword, setSavedPassword] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function save(newPassword: string) {
     setError(null);
-    if (password.length < 6) {
+    if (newPassword.length < 6) {
       setError("The password needs at least 6 characters.");
       return;
     }
     setSubmitting(true);
     try {
-      await updateStudent(student.id, { password });
-      setSavedPassword(password);
+      await updateStudent(student.id, { password: newPassword });
+      setSavedPassword(newPassword);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    void save(password);
   }
 
   async function copy(text: string) {
@@ -133,6 +137,18 @@ export function ResetStudentPasswordModal({
             className="mt-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface-alt transition-colors"
           >
             Generate a password
+          </button>
+        </div>
+
+        <div className="rounded-lg border border-border bg-surface-alt p-3">
+          <p className="text-xs text-muted">Or put the student back on the default password.</p>
+          <button
+            type="button"
+            disabled={submitting}
+            onClick={() => save(DEFAULT_STUDENT_PASSWORD)}
+            className="mt-2 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-surface disabled:opacity-50 transition-colors"
+          >
+            Reset to default ({DEFAULT_STUDENT_PASSWORD})
           </button>
         </div>
 
